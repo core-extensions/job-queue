@@ -33,20 +33,6 @@ class Job
      */
     private const CANCELED_FOR_RERUN = 100;
 
-    // ключи для worker
-    private const WORKER_INFO_PID = 'pid';
-    private const WORKER_INFO_NAME = 'name';
-
-    // ключи retry
-    private const RETRY_OPTION_MAX_RETRIES = 'max_retries';
-
-    // ключи для error
-    private const ERROR_CODE = 'code';
-    private const ERROR_MESSAGE = 'message';
-    private const ERROR_LINE = 'line';
-    private const ERROR_FILE = 'file';
-    private const ERROR_PREVIOUS_MESSAGE = 'previous_message';
-
     /**
      * @ORM\Id
      *
@@ -173,12 +159,17 @@ class Job
             sprintf('Result must be not empty array or null for job "%s" in "%s"', $this->jobId, __METHOD__)
         );
 
-        $maxRetries = $this->getRetryOptions()[self::RETRY_OPTION_MAX_RETRIES] ?? null;
-        if (null === $maxRetries) {
-            Assert::null(
-                $this->getError(),
-                sprintf('Trying to resolve already failed non retryable job "%s" in "%s"', $this->jobId, __METHOD__)
-            );
+        if (null === $this->getRetryOptions()) {
+            $retryOptions = RetryOptions::fromArray($this->getRetryOptions());
+            $maxRetries = $retryOptions->getMaxRetries();
+
+            // TODO: retry logic
+            if (1 === $maxRetries) {
+                Assert::null(
+                    $this->getError(),
+                    sprintf('Trying to resolve already failed non retryable job "%s" in "%s"', $this->jobId, __METHOD__)
+                );
+            }
         }
 
         $this->setResult($result);
