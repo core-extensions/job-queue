@@ -58,16 +58,19 @@ abstract class AbstractJobCommand
      */
     // abstract public static function fromJob(Job $job);
 
-    abstract public function serialize();
-
-    abstract public function deserialize(array $array): void;
-
-    final public static function fromArray(array $array): self
+    /**
+     * only for bound
+     */
+    protected static function fromArray(array $array): self
     {
+        // TODO: 1) либо разрешать не передавать jobId что может быть удобно, потому что fromArray может использоваться часто
+        // TODO: 2) сделать отдельный метод для bound, тогда уж fromJob
+        // TODO: 3) разрешать так как должен соблюдаться соглашение, но из БД брать отдельный методомчцыцфй
+        // TODO: 4) переопределять
         $jobId = $array[self::KEY_JOB_ID] ?? null;
         Assert::uuid(
             $jobId,
-            sprintf('Invalid param "%s" in "%s"', $jobId, __METHOD__)
+            sprintf('Invalid param "%s" in "%s"', self::KEY_JOB_ID, __METHOD__)
         );
 
         $res = new static();
