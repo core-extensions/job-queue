@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue\Tests;
+namespace CoreExtensions\JobQueue\Tests\App;
 
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\HttpKernel\Kernel;

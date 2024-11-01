@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace CoreExtensions\JobQueue\Entity;
 
 use CoreExtensions\JobQueue\AbstractJobCommand;
+use CoreExtensions\JobQueue\ErrorInfo;
+use CoreExtensions\JobQueue\RetryOptions;
+use CoreExtensions\JobQueue\WorkerInfo;
 use Doctrine\ORM\Mapping as ORM;
 use Webmozart\Assert\Assert;
 
@@ -181,27 +184,9 @@ class Job
         $this->setResult($result);
     }
 
-    public function failedWithException(\Throwable $tr): void
+    public function failed(ErrorInfo $errorInfo): void
     {
-        $previous = $tr->getPrevious();
-        $this->failed(
-            $tr->getCode(),
-            $tr->getMessage(),
-            $tr->getLine(),
-            $tr->getFile(),
-            $previous ? $previous->getMessage() : null
-        );
-    }
-
-    public function failed(int $errCode, string $errMessage, int $line, string $file, ?string $previousMessage): void
-    {
-        $this->setError([
-            self::ERROR_CODE => $errCode,
-            self::ERROR_MESSAGE => $errMessage,
-            self::ERROR_LINE => $line,
-            self::ERROR_FILE => $file,
-            self::ERROR_PREVIOUS_MESSAGE => $previousMessage,
-        ]);
+        $this->setError($errorInfo->toArray());
     }
 
     public function bindToChain(string $chainId, int $chainPosition): void
@@ -213,24 +198,14 @@ class Job
         $this->chainPosition = $chainPosition;
     }
 
-    public function bindWorkerInfo(int $workerPid, string $workerName): void
+    public function bindWorkerInfo(WorkerInfo $workerInfo): void
     {
-        Assert::positiveInteger($workerPid, sprintf('Invalid param "%s" in "%s"', 'workerPid', __METHOD__));
-        Assert::stringNotEmpty($workerName, sprintf('Invalid param "%s" in "%s"', 'workerName', __METHOD__));
-
-        $this->setWorkerInfo([
-            self::WORKER_INFO_PID => $workerPid,
-            self::WORKER_INFO_NAME => $workerName,
-        ]);
+        $this->setWorkerInfo($workerInfo->toArray());
     }
 
-    public function configureRetryOptions(int $maxRetries): void
+    public function configureRetryOptions(RetryOptions $retryOptions): void
     {
-        Assert::positiveInteger($maxRetries, sprintf('Invalid param "%s" in "%s"', 'maxRetries', __METHOD__));
-
-        $this->setRetryOptions([
-            self::RETRY_OPTION_MAX_RETRIES => $maxRetries,
-        ]);
+        $this->setRetryOptions($retryOptions->toArray());
     }
 
     // getters && setters
