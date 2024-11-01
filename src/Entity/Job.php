@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueue\Entity;
 
-use CoreExtensions\JobQueue\AbstractJobCommand;
 use CoreExtensions\JobQueue\ErrorInfo;
+use CoreExtensions\JobQueue\JobCommandInterface;
 use CoreExtensions\JobQueue\RetryOptions;
 use CoreExtensions\JobQueue\WorkerInfo;
 use Doctrine\ORM\Mapping as ORM;
@@ -24,6 +24,7 @@ use Webmozart\Assert\Assert;
  * // TODO: retry + result of it
  *
  * @ORM\Entity(repositoryClass="CoreExtensions\JobQueue\Repository\JobRepository")
+ *
  * @ORM\Table(name="orm_jobs", schema="jobs"))
  */
 class Job
@@ -31,7 +32,7 @@ class Job
     /**
      * Признак что остановили временно для re-run после deploy (обсуждаемо).
      */
-    private const CANCELED_FOR_RERUN = 100;
+    public const CANCELED_FOR_RERUN = 100;
 
     /**
      * @ORM\Id
@@ -95,7 +96,7 @@ class Job
      *
      * @ORM\Column(type="json", nullable=true)
      */
-    private ?array $workerInfo;
+    private ?array $workerInfo = null;
 
     /**
      * Признак chained очереди.
@@ -127,7 +128,7 @@ class Job
     /**
      * Инициализирует Job и делает JobMessage bound к нему.
      */
-    public static function initNew(string $jobId, AbstractJobCommand $jobMessage, \DateTimeImmutable $createdAt): self
+    public static function initNew(string $jobId, JobCommandInterface $jobMessage, \DateTimeImmutable $createdAt): self
     {
         $res = new self();
         $res->setJobId($jobId);
@@ -140,14 +141,30 @@ class Job
         return $res;
     }
 
-    public function dispatched(\DateTimeImmutable $dispatchedAt, string $dispatchedMessageId): void
+    public function dispatched(\DateTimeImmutable $dispatchedAt, ?string $dispatchedMessageId): void
     {
+        Assert::greaterThanEq(
+            $dispatchedAt->getTimestamp(),
+            $this->createdAt->getTimestamp(),
+            sprintf('Date of param "%s" must be later than "createdAt" in "%s"', 'dispatchedAt', __METHOD__)
+        );
+        Assert::nullOrStringNotEmpty(
+            $dispatchedMessageId,
+            sprintf('Invalid param "%s" in "%s"', 'dispatchedMessageId', __METHOD__)
+        );
+
         $this->setDispatchedAt($dispatchedAt);
         $this->setDispatchedMessageId($dispatchedMessageId);
     }
 
     public function canceled(\DateTimeImmutable $canceledAt, int $canceledFor): void
     {
+        Assert::greaterThanEq(
+            $canceledAt->getTimestamp(),
+            $this->createdAt->getTimestamp(),
+            sprintf('Date of param "%s" must be later than "createdAt" in "%s"', 'canceledAt', __METHOD__)
+        );
+
         $this->setCanceledAt($canceledAt);
         $this->setCanceledFor($canceledFor);
     }

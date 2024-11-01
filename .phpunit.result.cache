@@ -1,1 +1,0 @@
-{"version":1,"defects":{"Warning":6,"CoreExtensions\\JobQueue\\Tests\\JobTest::it_can_initiated":4},"times":{"Warning":0.001,"CoreExtensions\\JobQueue\\Tests\\JobTest::it_can_initiated":0.001,"CoreExtensions\\JobQueue\\Tests\\JobManagerTest::it_can_enqueue_an_job":0.001}}

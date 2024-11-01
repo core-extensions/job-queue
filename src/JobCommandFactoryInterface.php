@@ -14,5 +14,5 @@ use CoreExtensions\JobQueue\Entity\Job;
  */
 interface JobCommandFactoryInterface
 {
-    public function createFromJob(Job $job): AbstractJobCommand;
+    public function createFromJob(Job $job): JobCommandInterface;
 }

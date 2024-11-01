@@ -58,7 +58,7 @@ final class JobManager
      * (транзакция на всю группу)
      * (в случае ошибок откатывает и возвращает ошибку)
      *
-     * @var Job[]
+     * @param Job[] $jobs
      */
     public function enqueueChain(string $chainId, array $jobs): void
     {

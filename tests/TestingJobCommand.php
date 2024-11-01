@@ -4,26 +4,58 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueue\Tests;
 
-use CoreExtensions\JobQueue\AbstractJobCommand;
-use Webmozart\Assert\Assert;
+use CoreExtensions\JobQueue\Entity\Job;
+use CoreExtensions\JobQueue\JobCommandInterface;
 
-final class TestingJobCommand extends AbstractJobCommand
+final class TestingJobCommand implements JobCommandInterface
 {
     public const JOB_TYPE = 'test.command';
 
-    private string $int;
+    private ?string $jobId = null;
+    private int $int;
     private string $string;
     private \DateTimeImmutable $date;
     private array $array;
+
+    private function __construct()
+    {
+    }
 
     public function getJobType(): string
     {
         return self::JOB_TYPE;
     }
 
-    public function serialize(): array
+    public function getJobId(): ?string
+    {
+        return $this->jobId;
+    }
+
+    public function bindJob(Job $job): void
+    {
+        $this->jobId = $job->getJobId();
+    }
+
+    public static function fromValues(int $int, string $string, \DateTimeImmutable $date, array $array): self
+    {
+        $res = new self();
+        $res->int = $int;
+        $res->string = $string;
+        $res->date = $date;
+        $res->array = $array;
+
+        return $res;
+    }
+
+    public static function fromArray(array $arr): self
+    {
+        return self::fromValues($arr['int'], $arr['string'], $arr['date'], $arr['array']);
+    }
+
+    public function toArray(): array
     {
         return [
+            'jobId' => $this->getJobId(),
             'int' => $this->getInt(),
             'string' => $this->getString(),
             'date' => $this->getDate(), // serialize?
@@ -31,18 +63,7 @@ final class TestingJobCommand extends AbstractJobCommand
         ];
     }
 
-    public static function fromArray(array $arr): self
-    {
-        $res = parent::fromArray($arr);
-        $res->int = $arr['int'];
-        $res->string = $arr['string'];
-        $res->date = $arr['date'];
-        $res->array = $arr['array'];
-
-        return $res;
-    }
-
-    public function getInt(): string
+    public function getInt(): int
     {
         return $this->int;
     }

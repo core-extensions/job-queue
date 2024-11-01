@@ -15,6 +15,8 @@
       <option name="NEW_LINE_AFTER_PHP_OPENING_TAG" value="true" />
     </PHPCodeStyleSettings>
     <codeStyleSettings language="PHP">
+      <option name="LINE_COMMENT_AT_FIRST_COLUMN" value="false" />
+      <option name="LINE_COMMENT_ADD_SPACE" value="true" />
       <option name="KEEP_BLANK_LINES_BEFORE_RBRACE" value="0" />
       <option name="BLANK_LINES_AFTER_PACKAGE" value="1" />
       <option name="ALIGN_MULTILINE_PARAMETERS" value="false" />

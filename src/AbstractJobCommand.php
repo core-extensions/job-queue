@@ -10,6 +10,8 @@ use Webmozart\Assert\Assert;
 /**
  * @lib
  *
+ * @deprecated
+ *
  * Основное назначение: хранить всю информацию которая понадобится в handler.
  * По сути это и есть Job, а тот который у нас есть - просто doctrine-based-запись и результат работы.
  */
@@ -61,30 +63,26 @@ abstract class AbstractJobCommand
     /**
      * only for bound
      */
-    protected static function fromArray(array $array): self
+    protected static function fromArray(array $arr): self
     {
         // TODO: 1) либо разрешать не передавать jobId что может быть удобно, потому что fromArray может использоваться часто
         // TODO: 2) сделать отдельный метод для bound, тогда уж fromJob
         // TODO: 3) разрешать так как должен соблюдаться соглашение, но из БД брать отдельный методомчцыцфй
         // TODO: 4) переопределять
-        $jobId = $array[self::KEY_JOB_ID] ?? null;
-        Assert::uuid(
+        $jobId = $arr[self::KEY_JOB_ID] ?? null;
+        Assert::nullOrUuid(
             $jobId,
             sprintf('Invalid param "%s" in "%s"', self::KEY_JOB_ID, __METHOD__)
         );
 
         $res = new static();
-        $res->deserialize($array);
         $res->jobId = $jobId;
 
         return $res;
     }
 
-    final public function toArray(): array
+    protected function toArray(): array
     {
-        return array_merge(
-            $this->serialize(),
-            [self::KEY_JOB_ID => $this->jobId]
-        );
+        return [self::KEY_JOB_ID => $this->jobId];
     }
 }

@@ -7,10 +7,6 @@ namespace CoreExtensions\JobQueue;
 use CoreExtensions\JobQueue\Entity\Job;
 
 /**
- * @lib
- *
- * @deprecated
- *
  * Основное назначение: хранить всю информацию которая понадобится в handler.
  * По сути это и есть Job, а тот который у нас есть - просто doctrine-based-запись и результат работы.
  */
@@ -21,9 +17,11 @@ interface JobCommandInterface
     /**
      * (присутствует здесь потому что удобно доставать в handler)
      */
-    public function getJobId(): string;
+    public function getJobId(): ?string;
+
+    public function bindJob(Job $job): void;
 
     public function toArray(): array;
 
-    public static function fromJob(Job $job): self;
+    public static function fromArray(array $arr): self;
 }

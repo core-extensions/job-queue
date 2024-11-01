@@ -102,6 +102,8 @@
       <excludeFolder url="file://$MODULE_DIR$/vendor/react/dns" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/react/promise" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/fidry/cpu-core-counter" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/hamcrest/hamcrest-php" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/mockery/mockery" />
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
