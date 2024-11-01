@@ -15,7 +15,8 @@ return (new PhpCsFixer\Config())
         '@PSR12' => true,
         'array_syntax' => ['syntax' => 'short'],
         'ordered_imports' => true,
-        'no_unused_imports' => true,
+        // @see https://cs.symfony.com/doc/rules/import/no_unused_imports.html
+        'no_unused_imports' => false,
         'trailing_comma_in_multiline' => true,
         'phpdoc_align' => true,
         'phpdoc_order' => true,
