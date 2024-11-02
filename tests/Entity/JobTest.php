@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CoreExtensions\JobQueue\Tests\Entity;
 
 use CoreExtensions\JobQueue\Entity\Job;
+use CoreExtensions\JobQueue\JobConfiguration;
 use CoreExtensions\JobQueue\Tests\TestingJobCommand;
 use PHPUnit\Framework\TestCase;
 
@@ -36,7 +37,7 @@ final class JobTest extends TestCase
         $this->assertNull($job->getChainPosition());
         $this->assertNull($job->getResult());
         $this->assertNull($job->getErrors());
-        $this->assertNull($job->getRetryOptions());
+        $this->assertEquals(JobConfiguration::default()->toArray(), $job->getJobConfiguration()); // using default conf
     }
 
     /**

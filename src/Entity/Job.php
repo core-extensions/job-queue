@@ -6,8 +6,8 @@ namespace CoreExtensions\JobQueue\Entity;
 
 use CoreExtensions\JobQueue\ErrorInfo;
 use CoreExtensions\JobQueue\JobCommandInterface;
+use CoreExtensions\JobQueue\JobConfiguration;
 use CoreExtensions\JobQueue\JobManager;
-use CoreExtensions\JobQueue\RetryOptions;
 use CoreExtensions\JobQueue\WorkerInfo;
 use Doctrine\ORM\Mapping as ORM;
 use Webmozart\Assert\Assert;
@@ -25,6 +25,7 @@ use Webmozart\Assert\Assert;
  * // TODO: retry + result of it
  * // TODO: optimistic locking чтобы с UI не могли работать со старыми данными
  * // TODO: sealing ?
+ * // TODO: set && get использовать?
  *
  * @ORM\Entity(repositoryClass="CoreExtensions\JobQueue\Repository\JobRepository")
  *
@@ -45,7 +46,6 @@ class Job
     public const SEALED_DUE_RESOLVED = 20;
     public const SEALED_DUE_MAX_RETRIES_REACHED = 30;
     public const SEALED_DUE_TIMEOUT = 31;
-
 
     /**
      * @ORM\Id
@@ -160,11 +160,15 @@ class Job
     private ?array $errors = null;
 
     /**
-     * @see RetryOptions
+     * Если не задано, то будет установлено default-значение.
+     * (так как maxRetries - должен иметь лимит)
+     * (как и timeout - должен иметь лимит)
      *
-     * @ORM\Column(type="json", nullable=true)
+     * @see JobConfiguration::default()
+     *
+     * @ORM\Column(type="json")
      */
-    private ?array $retryOptions = null;
+    private array $jobConfiguration;
 
     /**
      * Optimistic locking.
@@ -209,6 +213,7 @@ class Job
         $res->setJobType($jobMessage->getJobType());
         $res->setJobCommand($jobMessage->toArray());
         $res->setCreatedAt($createdAt);
+        $res->configure(JobConfiguration::default());
 
         $jobMessage->bindJob($res);
 
@@ -255,17 +260,15 @@ class Job
             sprintf('Result must be not empty array for job "%s" in "%s"', $this->jobId, __METHOD__)
         );
 
-        $retryOptions = null === $this->getRetryOptions() ? null : RetryOptions::fromArray($this->getRetryOptions());
-        if (null !== $retryOptions) {
-            $maxRetries = $retryOptions->getMaxRetries();
+        $jobConfiguration = JobConfiguration::fromArray($this->getJobConfiguration());
+        $maxRetries = $jobConfiguration->getMaxRetries();
 
-            if (1 === $maxRetries) {
-                // TODO: дописать
-                Assert::null(
-                    $this->getErrors(),
-                    sprintf('Trying to resolve already failed non retryable job "%s" in "%s"', $this->jobId, __METHOD__)
-                );
-            }
+        if (1 === $maxRetries) {
+            // TODO: дописать
+            Assert::null(
+                $this->getErrors(),
+                sprintf('Trying to resolve already failed non retryable job "%s" in "%s"', $this->jobId, __METHOD__)
+            );
         }
 
         $this->setAttemptsCount($this->getAttemptsCount() + 1);
@@ -277,21 +280,12 @@ class Job
     {
         $this->commitFailedAttempt($failedAt, $errorInfo);
 
-        // refactoring
-        if (null === $this->getRetryOptions()) {
-            $retryOptions = RetryOptions::fromArray($this->getRetryOptions());
-            $maxRetries = $retryOptions->getMaxRetries();
+        $jobConfiguration = JobConfiguration::fromArray($this->getJobConfiguration());
+        $maxRetries = $jobConfiguration->getMaxRetries();
 
-            if ($this->getAttemptsCount() >= $maxRetries) {
-                $this->sealed($failedAt, self::SEALED_DUE_MAX_RETRIES_REACHED);
-            }
+        if ($this->getAttemptsCount() >= $maxRetries) {
+            $this->sealed($failedAt, self::SEALED_DUE_MAX_RETRIES_REACHED);
         }
-    }
-
-    public function sealed(\DateTimeImmutable $sealedAt, int $due): void
-    {
-        $this->setSealedAt($sealedAt);
-        $this->setSealedDue($due);
     }
 
     public function bindToChain(string $chainId, int $chainPosition): void
@@ -308,9 +302,15 @@ class Job
         $this->setWorkerInfo($workerInfo->toArray());
     }
 
-    public function configureRetryOptions(RetryOptions $retryOptions): void
+    public function configure(JobConfiguration $jobConfiguration): void
     {
-        $this->setRetryOptions($retryOptions->toArray());
+        $this->setJobConfiguration($jobConfiguration->toArray());
+    }
+
+    public function sealed(\DateTimeImmutable $sealedAt, int $due): void
+    {
+        $this->setSealedAt($sealedAt);
+        $this->setSealedDue($due);
     }
 
     private function commitFailedAttempt(\DateTimeImmutable $failedAt, ErrorInfo $error): void
@@ -320,7 +320,7 @@ class Job
         // (специально без индекса (getAttemptsCount()]), чтобы увидеть проблему)
         $errors[] = [
             'date' => $failedAt,
-            'error' => $error->toArray()
+            'error' => $error->toArray(),
         ];
 
         $this->setAttemptsCount($this->getAttemptsCount() + 1);
@@ -338,6 +338,13 @@ class Job
                 $this->getSealedDue()
             )
         );
+    }
+
+    private function resolveJobConfiguration(): ?JobConfiguration
+    {
+        // хранить в поле?
+        // TODO: default - значение либо оно же но в сохраненном виде
+        return null === $this->getJobConfiguration() ? null : JobConfiguration::fromArray($this->getJobConfiguration());
     }
 
     // <<< domain logic
@@ -503,14 +510,14 @@ class Job
         $this->errors = $errors;
     }
 
-    public function getRetryOptions(): ?array
+    public function getJobConfiguration(): array
     {
-        return $this->retryOptions;
+        return $this->jobConfiguration;
     }
 
-    public function setRetryOptions(?array $retryOptions): void
+    public function setJobConfiguration(array $jobConfiguration): void
     {
-        $this->retryOptions = $retryOptions;
+        $this->jobConfiguration = $jobConfiguration;
     }
 
     public function getVersion(): int
