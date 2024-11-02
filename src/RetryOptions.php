@@ -27,6 +27,7 @@ final class RetryOptions
     public static function fromArray(array $arr): self
     {
         Assert::keyExists($arr, 'maxRetries', sprintf('No param "%s" in "%s"', 'maxRetries', __METHOD__));
+        Assert::positiveInteger($arr['maxRetries'], sprintf('Invalid param "%s" in "%s"', 'maxRetries', __METHOD__));
 
         return self::fromValues(
             $arr['maxRetries']

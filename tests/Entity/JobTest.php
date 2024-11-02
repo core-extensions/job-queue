@@ -85,6 +85,30 @@ final class JobTest extends TestCase
         $this->assertEquals(Job::CANCELED_FOR_RERUN, $job->getCanceledFor());
     }
 
+    /**
+     * @test
+     */
+    public function it_can_be_resolved(): void
+    {
+        $job = $this->provideJob(
+            '99a01a56-3f9d-4bf1-b065-484455cc2847',
+            $this->provideCommand(new \DateTimeImmutable()),
+            new \DateTimeImmutable()
+        );
+
+        $result = [
+            'example_int' => 2,
+            'example_string' => 'Hello',
+            'example_date' => new \DateTimeImmutable(),
+        ];
+
+        $resolvedAt = new \DateTimeImmutable();
+        $job->resolved($resolvedAt, $result);
+
+        $this->assertEquals($resolvedAt, $job->getResolvedAt());
+        $this->assertEquals($result, $job->getResult());
+    }
+
 
     /** @noinspection PhpSameParameterValueInspection */
     private function provideJob(

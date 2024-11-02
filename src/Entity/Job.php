@@ -6,6 +6,7 @@ namespace CoreExtensions\JobQueue\Entity;
 
 use CoreExtensions\JobQueue\ErrorInfo;
 use CoreExtensions\JobQueue\JobCommandInterface;
+use CoreExtensions\JobQueue\JobManager;
 use CoreExtensions\JobQueue\RetryOptions;
 use CoreExtensions\JobQueue\WorkerInfo;
 use Doctrine\ORM\Mapping as ORM;
@@ -22,6 +23,7 @@ use Webmozart\Assert\Assert;
  *  - hardcoded-таблицы (пока)
  *
  * // TODO: retry + result of it
+ * // TODO: optimistic locking чтобы с UI не могли работать со старыми данными
  *
  * @ORM\Entity(repositoryClass="CoreExtensions\JobQueue\Repository\JobRepository")
  *
@@ -36,7 +38,6 @@ class Job
 
     /**
      * @ORM\Id
-     *
      * @ORM\Column(type="guid", unique=true)
      */
     private string $jobId;
@@ -50,6 +51,7 @@ class Job
 
     /**
      * toArray - представление JobMessage
+     * @see JobCommandInterface
      *
      * @ORM\Column(type="json", nullable=true)
      */
@@ -70,7 +72,7 @@ class Job
     private ?\DateTimeImmutable $dispatchedAt = null;
 
     /**
-     * id сообщения в шине.
+     * Идентификатор сообщения в шине.
      * (в rabbit вида "amq.ctag-{random_string}-{number}")
      */
     private ?string $dispatchedMessageId = null;
@@ -84,7 +86,7 @@ class Job
     private ?int $canceledFor = null;
 
     /**
-     * Дата когда команда приняла отмену.
+     * Дата когда handler принял отмену.
      *
      * @ORM\Column(type="datetimetz_immutable", nullable=true)
      */
@@ -92,7 +94,7 @@ class Job
 
     /**
      * Информация о worker.
-     * {pid, name}
+     * @see WorkerInfo
      *
      * @ORM\Column(type="json", nullable=true)
      */
@@ -114,19 +116,53 @@ class Job
     private ?int $chainPosition = null;
 
     /**
-     * Результат работы.
-     * {*}
+     * Результат работы {*}.
+     *
+     * @ORM\Column(type="json", nullable=true)
      */
     private ?array $result = null;
 
     /**
-     * {code, message, line, file}
+     * Дата успешного выполнения.
+     *
+     * @ORM\Column(type="datetimetz_immutable", nullable=true)
+     */
+    private ?\DateTimeImmutable $resolvedAt = null;
+
+    /**
+     * TODO: массив на каждый retry?
+     * @see ErrorInfo
+     *
+     * @ORM\Column(type="json", nullable=true)
      */
     private ?array $error = null;
+
+    /**
+     * @see RetryOptions
+     *
+     * @ORM\Column(type="json", nullable=true)
+     */
     private ?array $retryOptions = null;
 
     /**
+     * Количество попыток (0 - не запускалось, 1 - после первого запуска, инкремент - в последующие)
+     * @ORM\Column(type="integer")
+     */
+    private int $attemptsCount = 0;
+
+    /**
+     * Optimistic locking.
+     * To prevent to manage outdated from UI.
+     *
+     * @ORM\Version
+     * @ORM\Column(type="integer")
+     */
+    private int $version = 0;
+
+    /**
      * Инициализирует Job и делает JobMessage bound к нему.
+     * TODO: могут дублирование JobCommand, если jobId не будет меняться @see JobManager::enqueueChain(),
+     * TODO: возможно лучше сделать его генерацию внутренней, через factory (для тестов)
      */
     public static function initNew(string $jobId, JobCommandInterface $jobMessage, \DateTimeImmutable $createdAt): self
     {
@@ -169,18 +205,20 @@ class Job
         $this->setCanceledFor($canceledFor);
     }
 
-    public function resolved(?array $result): void
+    /**
+     * ($result - специально сделал not nullable, чтобы хоть что то о результате всегда писали)
+     */
+    public function resolved(\DateTimeImmutable $resolvedAt, array $result): void
     {
-        Assert::nullOrNotEmpty(
+        Assert::notEmpty(
             $result,
-            sprintf('Result must be not empty array or null for job "%s" in "%s"', $this->jobId, __METHOD__)
+            sprintf('Result must be not empty array for job "%s" in "%s"', $this->jobId, __METHOD__)
         );
 
-        if (null === $this->getRetryOptions()) {
-            $retryOptions = RetryOptions::fromArray($this->getRetryOptions());
+        $retryOptions = null === $this->getRetryOptions() ? null : RetryOptions::fromArray($this->getRetryOptions());
+        if (null !== $retryOptions) {
             $maxRetries = $retryOptions->getMaxRetries();
 
-            // TODO: retry logic
             if (1 === $maxRetries) {
                 Assert::null(
                     $this->getError(),
@@ -189,12 +227,18 @@ class Job
             }
         }
 
+        $this->setResolvedAt($resolvedAt);
         $this->setResult($result);
     }
 
     public function failed(ErrorInfo $errorInfo): void
     {
         $this->setError($errorInfo->toArray());
+
+        $retryOptions = null === $this->getRetryOptions() ? null : RetryOptions::fromArray($this->getRetryOptions());
+        if (null !== $retryOptions) {
+            // TODO: some retry logic
+        }
     }
 
     public function bindToChain(string $chainId, int $chainPosition): void
@@ -366,5 +410,25 @@ class Job
     public function getRetryOptions(): ?array
     {
         return $this->retryOptions;
+    }
+
+    public function getResolvedAt(): ?\DateTimeImmutable
+    {
+        return $this->resolvedAt;
+    }
+
+    public function setResolvedAt(?\DateTimeImmutable $resolvedAt): void
+    {
+        $this->resolvedAt = $resolvedAt;
+    }
+
+    public function getAttemptsCount(): int
+    {
+        return $this->attemptsCount;
+    }
+
+    public function setAttemptsCount(int $attemptsCount): void
+    {
+        $this->attemptsCount = $attemptsCount;
     }
 }
