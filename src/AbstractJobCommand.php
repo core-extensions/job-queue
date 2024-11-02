@@ -8,12 +8,12 @@ use CoreExtensions\JobQueue\Entity\Job;
 use Webmozart\Assert\Assert;
 
 /**
- * @lib
+ * Abstract вариация JobCommandInterface.
  *
  * @deprecated
  *
- * Основное назначение: хранить всю информацию которая понадобится в handler.
- * По сути это и есть Job, а тот который у нас есть - просто doctrine-based-запись и результат работы.
+ * минусы:
+ *  - чтобы не терять jobId придется вызывать parent::fromArray, from::toArray. Что делает Commands не ValueObjects-like.
  */
 abstract class AbstractJobCommand
 {
