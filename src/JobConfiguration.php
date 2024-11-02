@@ -22,6 +22,7 @@ final class JobConfiguration
 
     /**
      * Количество секунд по истечению которой Job при поступлении в handler не будет.
+     *
      * @see JobTimeoutExceededException
      */
     private ?int $timeout;

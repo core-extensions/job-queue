@@ -34,6 +34,7 @@ final class JobManager
      * TODO: в handlers придется обрабатывать случай когда нет Job (OrphanJobCommandException)
      *
      * @throws \Throwable
+     *
      * @see OrphanJobCommandException
      */
     public function enqueueJob(Job $job): void
@@ -78,6 +79,7 @@ final class JobManager
      * (транзакция на всю группу)
      *
      * @param Job[] $jobs
+     *
      * @throws \Throwable
      *
      * @see OrphanJobCommandException

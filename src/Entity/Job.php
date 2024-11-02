@@ -28,7 +28,6 @@ use Webmozart\Assert\Assert;
  * // TODO: set && get использовать?
  *
  * @ORM\Entity(repositoryClass="CoreExtensions\JobQueue\Repository\JobRepository")
- *
  * @ORM\Table(name="orm_jobs", schema="jobs"))
  */
 class Job
@@ -62,6 +61,7 @@ class Job
 
     /**
      * toArray - представление JobMessage
+     *
      * @see JobCommandInterface
      *
      * @ORM\Column(type="json", nullable=true)
@@ -109,6 +109,7 @@ class Job
 
     /**
      * Информация о worker.
+     *
      * @see WorkerInfo
      *
      * @ORM\Column(type="json", nullable=true)
@@ -153,6 +154,7 @@ class Job
 
     /**
      * Массив из ErrorInfo, где ключи ($attemptsCount - 1) (нумерация с нуля).
+     *
      * @see ErrorInfo[]
      *
      * @ORM\Column(type="json", nullable=true)
