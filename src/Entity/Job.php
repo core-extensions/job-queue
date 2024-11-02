@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CoreExtensions\JobQueue\Entity;
 
 use CoreExtensions\JobQueue\ErrorInfo;
+use CoreExtensions\JobQueue\Exception\JobSealedInteractionException;
 use CoreExtensions\JobQueue\JobCommandInterface;
 use CoreExtensions\JobQueue\JobConfiguration;
 use CoreExtensions\JobQueue\JobManager;
@@ -261,6 +262,7 @@ class Job
             $result,
             sprintf('Result must be not empty array for job "%s" in "%s"', $this->jobId, __METHOD__)
         );
+        $this->assertJobNotSealed('revoked');
 
         $jobConfiguration = JobConfiguration::fromArray($this->getJobConfiguration());
         $maxRetries = $jobConfiguration->getMaxRetries();
@@ -280,6 +282,7 @@ class Job
 
     public function failed(\DateTimeImmutable $failedAt, ErrorInfo $errorInfo): void
     {
+        $this->assertJobNotSealed('revoked');
         $this->commitFailedAttempt($failedAt, $errorInfo);
 
         $jobConfiguration = JobConfiguration::fromArray($this->getJobConfiguration());
@@ -290,8 +293,11 @@ class Job
         }
     }
 
+    // TODO: private либо makeСhained здесь
     public function bindToChain(string $chainId, int $chainPosition): void
     {
+        $this->assertJobNotSealed('revoked');
+
         Assert::uuid($chainId, sprintf('Invalid param "%s" in "%s"', 'chainId', __METHOD__));
         Assert::greaterThanEq($chainPosition, 0, sprintf('Invalid param "%s" in "%s"', 'chainPosition', __METHOD__));
 
@@ -301,11 +307,13 @@ class Job
 
     public function bindWorkerInfo(WorkerInfo $workerInfo): void
     {
+        $this->assertJobNotSealed('revoked');
         $this->setWorkerInfo($workerInfo->toArray());
     }
 
     public function configure(JobConfiguration $jobConfiguration): void
     {
+        $this->assertJobNotSealed('revoked');
         $this->setJobConfiguration($jobConfiguration->toArray());
     }
 
@@ -331,6 +339,10 @@ class Job
 
     private function assertJobNotSealed(string $action): void
     {
+        if (null !== $this->getSealedAt()) {
+            throw JobSealedInteractionException::fromJob($this, $action);
+        }
+
         Assert::null(
             $this->getSealedAt(),
             sprintf(

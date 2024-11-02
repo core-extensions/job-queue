@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace CoreExtensions\JobQueue\Tests\Entity;
 
 use CoreExtensions\JobQueue\Entity\Job;
+use CoreExtensions\JobQueue\ErrorInfo;
+use CoreExtensions\JobQueue\Exception\JobSealedInteractionException;
 use CoreExtensions\JobQueue\JobConfiguration;
 use CoreExtensions\JobQueue\Tests\TestingJobCommand;
+use CoreExtensions\JobQueue\WorkerInfo;
 use PHPUnit\Framework\TestCase;
 
 // TODO: throws_exceptions tests
@@ -14,6 +17,19 @@ use PHPUnit\Framework\TestCase;
 // TODO: sealed throw
 final class JobTest extends TestCase
 {
+    private Job $job;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->job = $this->provideJob(
+            '99a01a56-3f9d-4bf1-b065-484455cc2847',
+            $this->provideCommand(new \DateTimeImmutable()),
+            new \DateTimeImmutable()
+        );
+    }
+
     /**
      * @test
      */
@@ -38,6 +54,18 @@ final class JobTest extends TestCase
         $this->assertNull($job->getResult());
         $this->assertNull($job->getErrors());
         $this->assertEquals(JobConfiguration::default()->toArray(), $job->getJobConfiguration()); // using default conf
+    }
+
+    /**
+     * @test
+     */
+    public function it_can_be_sealed(): void
+    {
+        $job = $this->job;
+        $job->sealed(new \DateTimeImmutable(), Job::SEALED_DUE_TIMEOUT);
+
+        $this->assertNotNull($job->getSealedAt());
+        $this->assertNotNull($job->getSealedDue());
     }
 
     /**
@@ -109,6 +137,33 @@ final class JobTest extends TestCase
 
         $this->assertEquals($resolvedAt, $job->getResolvedAt());
         $this->assertEquals($result, $job->getResult());
+    }
+
+    /**
+     * @test
+     */
+    public function it_yell_when_interaction_with_sealed(): void
+    {
+        $job = $this->job;
+        $job->sealed(new \DateTimeImmutable(), Job::SEALED_DUE_TIMEOUT);
+
+        $this->expectException(JobSealedInteractionException::class);
+        $job->dispatched(new \DateTimeImmutable(), 'string_id');
+
+        $this->expectException(JobSealedInteractionException::class);
+        $job->revoked(new \DateTimeImmutable(), Job::REVOKED_FOR_RE_RUN);
+
+        $this->expectException(JobSealedInteractionException::class);
+        $job->resolved(new \DateTimeImmutable(), ['custom_result' => 1]);
+
+        $this->expectException(JobSealedInteractionException::class);
+        $job->failed(new \DateTimeImmutable(), ErrorInfo::fromValues(1, 'message', 1, 'file', 'previous_message'));
+
+        $this->expectException(JobSealedInteractionException::class);
+        $job->bindToChain('1ab7d89d-fa15-4fb4-823b-4c3f08a16df3', 1);
+
+        $this->expectException(JobSealedInteractionException::class);
+        $job->bindWorkerInfo(WorkerInfo::fromValues(123, 'app'));
     }
 
     // TODO: chain tests

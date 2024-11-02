@@ -12,6 +12,6 @@ use CoreExtensions\JobQueue\JobManager;
  * @see JobManager::enqueueJob()
  * @see JobManager::enqueueChain()
  */
-final class OrphanJobCommandException extends \RuntimeException implements JobNonRetryableExceptionInterface
+final class JobCommandOrphanException extends \RuntimeException implements JobNonRetryableExceptionInterface
 {
 }
