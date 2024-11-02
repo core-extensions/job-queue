@@ -6,6 +6,7 @@ namespace CoreExtensions\JobQueue;
 
 use Webmozart\Assert\Assert;
 
+// TODO: может дату сюда? => FailInfo
 final class ErrorInfo
 {
     private int $code;

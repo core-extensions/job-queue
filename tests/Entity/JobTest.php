@@ -8,6 +8,9 @@ use CoreExtensions\JobQueue\Entity\Job;
 use CoreExtensions\JobQueue\Tests\TestingJobCommand;
 use PHPUnit\Framework\TestCase;
 
+// TODO: throws_exceptions tests
+// TODO: chain workflow tests
+// TODO: sealed throw
 final class JobTest extends TestCase
 {
     /**
@@ -25,14 +28,14 @@ final class JobTest extends TestCase
         $this->assertEquals($createdAt, $job->getCreatedAt());
         $this->assertNull($job->getDispatchedAt());
         $this->assertNull($job->getDispatchedMessageId());
-        $this->assertNull($job->getCanceledAcceptedAt());
-        $this->assertNull($job->getCanceledFor());
-        $this->assertNull($job->getCanceledAcceptedAt());
+        $this->assertNull($job->getResolvedAt());
+        $this->assertNull($job->getRevokedFor());
+        $this->assertNull($job->getRevokeAcceptedAt());
         $this->assertNull($job->getWorkerInfo());
         $this->assertNull($job->getChainId());
         $this->assertNull($job->getChainPosition());
         $this->assertNull($job->getResult());
-        $this->assertNull($job->getError());
+        $this->assertNull($job->getErrors());
         $this->assertNull($job->getRetryOptions());
     }
 
@@ -42,14 +45,12 @@ final class JobTest extends TestCase
     public function it_binds_job_to_command_when_initiated(): void
     {
         $command = $this->provideCommand(new \DateTimeImmutable());
-        $job = $this->provideJob('99a01a56-3f9d-4bf1-b065-484455cc2847', $command, new \DateTimeImmutable());
+        Job::initNew('99a01a56-3f9d-4bf1-b065-484455cc2847', $command, new \DateTimeImmutable());
 
         $this->assertEquals('99a01a56-3f9d-4bf1-b065-484455cc2847', $command->getJobId());
     }
 
     /**
-     * TODO: throws_exceptions
-     *
      * @test
      */
     public function it_can_be_dispatched(): void
@@ -70,7 +71,7 @@ final class JobTest extends TestCase
     /**
      * @test
      */
-    public function it_can_be_canceled(): void
+    public function it_can_be_revoked(): void
     {
         $job = $this->provideJob(
             '99a01a56-3f9d-4bf1-b065-484455cc2847',
@@ -78,11 +79,11 @@ final class JobTest extends TestCase
             new \DateTimeImmutable()
         );
 
-        $canceledAt = new \DateTimeImmutable();
-        $job->canceled($canceledAt, Job::CANCELED_FOR_RERUN);
+        $revokedAt = new \DateTimeImmutable();
+        $job->revoked($revokedAt, Job::REVOKED_FOR_RE_RUN);
 
-        $this->assertEquals($canceledAt, $job->getCanceledAt());
-        $this->assertEquals(Job::CANCELED_FOR_RERUN, $job->getCanceledFor());
+        $this->assertEquals($revokedAt, $job->getRevokedAt());
+        $this->assertEquals(Job::REVOKED_FOR_RE_RUN, $job->getRevokedFor());
     }
 
     /**
@@ -109,6 +110,7 @@ final class JobTest extends TestCase
         $this->assertEquals($result, $job->getResult());
     }
 
+    // TODO: chain tests
 
     /** @noinspection PhpSameParameterValueInspection */
     private function provideJob(

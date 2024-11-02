@@ -24,6 +24,7 @@ use Webmozart\Assert\Assert;
  *
  * // TODO: retry + result of it
  * // TODO: optimistic locking чтобы с UI не могли работать со старыми данными
+ * // TODO: sealing ?
  *
  * @ORM\Entity(repositoryClass="CoreExtensions\JobQueue\Repository\JobRepository")
  *
@@ -34,7 +35,17 @@ class Job
     /**
      * Признак что остановили временно для re-run после deploy (обсуждаемо).
      */
-    public const CANCELED_FOR_RERUN = 100;
+    // Признак что остановили временно для re-run после deploy (обсуждаемо).
+    public const REVOKED_FOR_RE_RUN = 10;
+
+    /**
+     * Причины для sealed.
+     */
+    public const SEALED_DUE_REVOKED = 10;
+    public const SEALED_DUE_RESOLVED = 20;
+    public const SEALED_DUE_MAX_RETRIES_REACHED = 30;
+    public const SEALED_DUE_TIMEOUT = 31;
+
 
     /**
      * @ORM\Id
@@ -82,15 +93,19 @@ class Job
      *
      * @ORM\Column(type="datetimetz_immutable", nullable=true)
      */
-    private ?\DateTimeImmutable $canceledAt = null;
-    private ?int $canceledFor = null;
+    private ?\DateTimeImmutable $revokedAt = null;
+
+    /**
+     * @ORM\Column(type="integer", nullable=true)
+     */
+    private ?int $revokedFor = null;
 
     /**
      * Дата когда handler принял отмену.
      *
      * @ORM\Column(type="datetimetz_immutable", nullable=true)
      */
-    private ?\DateTimeImmutable $canceledAcceptedAt = null;
+    private ?\DateTimeImmutable $revokeAcceptedAt = null;
 
     /**
      * Информация о worker.
@@ -130,12 +145,19 @@ class Job
     private ?\DateTimeImmutable $resolvedAt = null;
 
     /**
-     * TODO: массив на каждый retry?
-     * @see ErrorInfo
+     * Количество попыток (0 - не запускалось, 1 - после первого запуска, инкремент - в последующие)
+     *
+     * @ORM\Column(type="integer", nullable=false)
+     */
+    private int $attemptsCount = 0;
+
+    /**
+     * Массив из ErrorInfo, где ключи ($attemptsCount - 1) (нумерация с нуля).
+     * @see ErrorInfo[]
      *
      * @ORM\Column(type="json", nullable=true)
      */
-    private ?array $error = null;
+    private ?array $errors = null;
 
     /**
      * @see RetryOptions
@@ -145,19 +167,35 @@ class Job
     private ?array $retryOptions = null;
 
     /**
-     * Количество попыток (0 - не запускалось, 1 - после первого запуска, инкремент - в последующие)
-     * @ORM\Column(type="integer")
-     */
-    private int $attemptsCount = 0;
-
-    /**
      * Optimistic locking.
      * To prevent to manage outdated from UI.
      *
      * @ORM\Version
-     * @ORM\Column(type="integer")
+     * @ORM\Column(type="integer", nullable=false)
      */
     private int $version = 0;
+
+    /**
+     * Дата когда Job помечена как "запечатанная".
+     * Job в таком состоянии позволяет только читать из нее данные.
+     * workflow-методы работать не будут.
+     *
+     * Это финальное состояние, оно возникает после:
+     *  1) revoke => revokeAccepted => sealed
+     *  2) failed => max retries reached => sealed
+     *  3) resolved => sealed
+     *  4) timeout reached => sealed
+     *
+     * @ORM\Column(type="datetimetz_immutable", nullable=true)
+     */
+    private ?\DateTimeImmutable $sealedAt = null;
+
+    /**
+     * @ORM\Column(type="integer", nullable=true)
+     */
+    private ?int $sealedDue = null;
+
+    // >>> domain logic
 
     /**
      * Инициализирует Job и делает JobMessage bound к нему.
@@ -188,21 +226,23 @@ class Job
             $dispatchedMessageId,
             sprintf('Invalid param "%s" in "%s"', 'dispatchedMessageId', __METHOD__)
         );
+        $this->assertJobNotSealed('dispatched');
 
         $this->setDispatchedAt($dispatchedAt);
         $this->setDispatchedMessageId($dispatchedMessageId);
     }
 
-    public function canceled(\DateTimeImmutable $canceledAt, int $canceledFor): void
+    public function revoked(\DateTimeImmutable $revokedAt, int $revokedFor): void
     {
         Assert::greaterThanEq(
-            $canceledAt->getTimestamp(),
+            $revokedAt->getTimestamp(),
             $this->createdAt->getTimestamp(),
-            sprintf('Date of param "%s" must be later than "createdAt" in "%s"', 'canceledAt', __METHOD__)
+            sprintf('Jon cannot be revoked before than it been created in "%s"', __METHOD__)
         );
+        $this->assertJobNotSealed('revoked');
 
-        $this->setCanceledAt($canceledAt);
-        $this->setCanceledFor($canceledFor);
+        $this->setRevokedAt($revokedAt);
+        $this->setRevokedFor($revokedFor);
     }
 
     /**
@@ -220,25 +260,38 @@ class Job
             $maxRetries = $retryOptions->getMaxRetries();
 
             if (1 === $maxRetries) {
+                // TODO: дописать
                 Assert::null(
-                    $this->getError(),
+                    $this->getErrors(),
                     sprintf('Trying to resolve already failed non retryable job "%s" in "%s"', $this->jobId, __METHOD__)
                 );
             }
         }
 
+        $this->setAttemptsCount($this->getAttemptsCount() + 1);
         $this->setResolvedAt($resolvedAt);
         $this->setResult($result);
     }
 
-    public function failed(ErrorInfo $errorInfo): void
+    public function failed(\DateTimeImmutable $failedAt, ErrorInfo $errorInfo): void
     {
-        $this->setError($errorInfo->toArray());
+        $this->commitFailedAttempt($failedAt, $errorInfo);
 
-        $retryOptions = null === $this->getRetryOptions() ? null : RetryOptions::fromArray($this->getRetryOptions());
-        if (null !== $retryOptions) {
-            // TODO: some retry logic
+        // refactoring
+        if (null === $this->getRetryOptions()) {
+            $retryOptions = RetryOptions::fromArray($this->getRetryOptions());
+            $maxRetries = $retryOptions->getMaxRetries();
+
+            if ($this->getAttemptsCount() >= $maxRetries) {
+                $this->sealed($failedAt, self::SEALED_DUE_MAX_RETRIES_REACHED);
+            }
         }
+    }
+
+    public function sealed(\DateTimeImmutable $sealedAt, int $due): void
+    {
+        $this->setSealedAt($sealedAt);
+        $this->setSealedDue($due);
     }
 
     public function bindToChain(string $chainId, int $chainPosition): void
@@ -260,8 +313,36 @@ class Job
         $this->setRetryOptions($retryOptions->toArray());
     }
 
-    // getters && setters
+    private function commitFailedAttempt(\DateTimeImmutable $failedAt, ErrorInfo $error): void
+    {
+        $errors = $this->getErrors();
+        // индексация с нуля
+        // (специально без индекса (getAttemptsCount()]), чтобы увидеть проблему)
+        $errors[] = [
+            'date' => $failedAt,
+            'error' => $error->toArray()
+        ];
 
+        $this->setAttemptsCount($this->getAttemptsCount() + 1);
+        $this->setErrors($errors);
+    }
+
+    private function assertJobNotSealed(string $action): void
+    {
+        Assert::null(
+            $this->getSealedAt(),
+            sprintf(
+                'Failed to apply action "%s" to sealed job "%s" (%d))',
+                $action,
+                $this->getJobId(),
+                $this->getSealedDue()
+            )
+        );
+    }
+
+    // <<< domain logic
+
+    // getters && setters (doctrine)
     public function getJobId(): string
     {
         return $this->jobId;
@@ -312,6 +393,46 @@ class Job
         $this->dispatchedAt = $dispatchedAt;
     }
 
+    public function getDispatchedMessageId(): ?string
+    {
+        return $this->dispatchedMessageId;
+    }
+
+    public function setDispatchedMessageId(?string $dispatchedMessageId): void
+    {
+        $this->dispatchedMessageId = $dispatchedMessageId;
+    }
+
+    public function getRevokedAt(): ?\DateTimeImmutable
+    {
+        return $this->revokedAt;
+    }
+
+    public function setRevokedAt(?\DateTimeImmutable $revokedAt): void
+    {
+        $this->revokedAt = $revokedAt;
+    }
+
+    public function getRevokedFor(): ?int
+    {
+        return $this->revokedFor;
+    }
+
+    public function setRevokedFor(?int $revokedFor): void
+    {
+        $this->revokedFor = $revokedFor;
+    }
+
+    public function getRevokeAcceptedAt(): ?\DateTimeImmutable
+    {
+        return $this->revokeAcceptedAt;
+    }
+
+    public function setRevokeAcceptedAt(?\DateTimeImmutable $revokeAcceptedAt): void
+    {
+        $this->revokeAcceptedAt = $revokeAcceptedAt;
+    }
+
     public function getWorkerInfo(): ?array
     {
         return $this->workerInfo;
@@ -342,16 +463,6 @@ class Job
         $this->chainPosition = $chainPosition;
     }
 
-    public function getError(): ?array
-    {
-        return $this->error;
-    }
-
-    public function setError(?array $error): void
-    {
-        $this->error = $error;
-    }
-
     public function getResult(): ?array
     {
         return $this->result;
@@ -360,56 +471,6 @@ class Job
     public function setResult(?array $result): void
     {
         $this->result = $result;
-    }
-
-    public function getCanceledAt(): ?\DateTimeImmutable
-    {
-        return $this->canceledAt;
-    }
-
-    public function setCanceledAt(?\DateTimeImmutable $canceledAt): void
-    {
-        $this->canceledAt = $canceledAt;
-    }
-
-    public function getCanceledFor(): ?int
-    {
-        return $this->canceledFor;
-    }
-
-    public function setCanceledFor(?int $canceledFor): void
-    {
-        $this->canceledFor = $canceledFor;
-    }
-
-    public function getDispatchedMessageId(): ?string
-    {
-        return $this->dispatchedMessageId;
-    }
-
-    public function setDispatchedMessageId(?string $dispatchedMessageId): void
-    {
-        $this->dispatchedMessageId = $dispatchedMessageId;
-    }
-
-    public function getCanceledAcceptedAt(): ?\DateTimeImmutable
-    {
-        return $this->canceledAcceptedAt;
-    }
-
-    public function setCanceledAcceptedAt(?\DateTimeImmutable $canceledAcceptedAt): void
-    {
-        $this->canceledAcceptedAt = $canceledAcceptedAt;
-    }
-
-    public function setRetryOptions(?array $retryOptions): void
-    {
-        $this->retryOptions = $retryOptions;
-    }
-
-    public function getRetryOptions(): ?array
-    {
-        return $this->retryOptions;
     }
 
     public function getResolvedAt(): ?\DateTimeImmutable
@@ -430,5 +491,55 @@ class Job
     public function setAttemptsCount(int $attemptsCount): void
     {
         $this->attemptsCount = $attemptsCount;
+    }
+
+    public function getErrors(): ?array
+    {
+        return $this->errors;
+    }
+
+    public function setErrors(?array $errors): void
+    {
+        $this->errors = $errors;
+    }
+
+    public function getRetryOptions(): ?array
+    {
+        return $this->retryOptions;
+    }
+
+    public function setRetryOptions(?array $retryOptions): void
+    {
+        $this->retryOptions = $retryOptions;
+    }
+
+    public function getVersion(): int
+    {
+        return $this->version;
+    }
+
+    public function setVersion(int $version): void
+    {
+        $this->version = $version;
+    }
+
+    public function getSealedAt(): ?\DateTimeImmutable
+    {
+        return $this->sealedAt;
+    }
+
+    public function setSealedAt(?\DateTimeImmutable $sealedAt): void
+    {
+        $this->sealedAt = $sealedAt;
+    }
+
+    public function getSealedDue(): ?int
+    {
+        return $this->sealedDue;
+    }
+
+    public function setSealedDue(?int $sealedDue): void
+    {
+        $this->sealedDue = $sealedDue;
     }
 }
