@@ -39,13 +39,22 @@ final class JobConfiguration
         return self::fromValues(1, self::DEFAULT_TIMEOUT);
     }
 
-    // fluent
+    // >>> fluent setters
+    public function withMaxRetries(int $maxRetries): self
+    {
+        $this->maxRetries = $maxRetries;
+
+        return $this;
+    }
+
     public function withTimeout(int $timeout): self
     {
         $this->timeout = $timeout;
 
         return $this;
     }
+
+    // <<< fluent setters
 
     public static function fromValues(int $maxRetries, ?int $timeout): self
     {

@@ -227,7 +227,7 @@ class Job
     {
         Assert::greaterThanEq(
             $dispatchedAt->getTimestamp(),
-            $this->createdAt->getTimestamp(),
+            $this->getCreatedAt()->getTimestamp(),
             sprintf('Date of param "%s" must be later than "createdAt" in "%s"', 'dispatchedAt', __METHOD__)
         );
         Assert::nullOrStringNotEmpty(
@@ -240,17 +240,41 @@ class Job
         $this->setDispatchedMessageId($dispatchedMessageId);
     }
 
+    /**
+     * (вызывается клиентом для отмены)
+     */
     public function revoked(\DateTimeImmutable $revokedAt, int $revokedFor): void
     {
         Assert::greaterThanEq(
             $revokedAt->getTimestamp(),
-            $this->createdAt->getTimestamp(),
+            $this->getCreatedAt()->getTimestamp(),
             sprintf('Jon cannot be revoked before than it been created in "%s"', __METHOD__)
         );
         $this->assertJobNotSealed('revoked');
 
         $this->setRevokedAt($revokedAt);
         $this->setRevokedFor($revokedFor);
+    }
+
+    /**
+     * (вызывается handlers для подтверждения получения отмены)
+     * (TODO: будет понятно после создания handler)
+     */
+    public function revokeAccepted(\DateTimeImmutable $revokeAcceptedAt): void
+    {
+        Assert::notNull(
+            $this->getRevokedAt(),
+            sprintf('Attempt to accept non revoked job "%s" in "%s"', $this->getJobId(), __METHOD__)
+        );
+        Assert::greaterThanEq(
+            $revokeAcceptedAt->getTimestamp(),
+            $this->getRevokedAt()->getTimestamp(),
+            sprintf('Jon cannot be revoked before than it been created in "%s"', __METHOD__)
+        );
+        $this->assertJobNotSealed('revokeAccepted');
+
+        $this->setRevokeAcceptedAt($revokeAcceptedAt);
+        $this->sealed($revokeAcceptedAt, self::SEALED_DUE_REVOKED);
     }
 
     /**
@@ -262,27 +286,20 @@ class Job
             $result,
             sprintf('Result must be not empty array for job "%s" in "%s"', $this->jobId, __METHOD__)
         );
-        $this->assertJobNotSealed('revoked');
+        $this->assertJobNotSealed('resolved');
 
-        $jobConfiguration = JobConfiguration::fromArray($this->getJobConfiguration());
-        $maxRetries = $jobConfiguration->getMaxRetries();
-
-        if (1 === $maxRetries) {
-            // TODO: дописать
-            Assert::null(
-                $this->getErrors(),
-                sprintf('Trying to resolve already failed non retryable job "%s" in "%s"', $this->jobId, __METHOD__)
-            );
-        }
-
-        $this->setAttemptsCount($this->getAttemptsCount() + 1);
+        $this->incAttemptsCount();
         $this->setResolvedAt($resolvedAt);
         $this->setResult($result);
+
+        // resolved => sealed
+        $this->sealed($resolvedAt, self::SEALED_DUE_RESOLVED);
     }
 
     public function failed(\DateTimeImmutable $failedAt, ErrorInfo $errorInfo): void
     {
-        $this->assertJobNotSealed('revoked');
+        $this->assertJobNotSealed('failed');
+
         $this->commitFailedAttempt($failedAt, $errorInfo);
 
         $jobConfiguration = JobConfiguration::fromArray($this->getJobConfiguration());
@@ -333,7 +350,7 @@ class Job
             'error' => $error->toArray(),
         ];
 
-        $this->setAttemptsCount($this->getAttemptsCount() + 1);
+        $this->incAttemptsCount();
         $this->setErrors($errors);
     }
 
@@ -359,6 +376,11 @@ class Job
         // хранить в поле?
         // TODO: default - значение либо оно же но в сохраненном виде
         return null === $this->getJobConfiguration() ? null : JobConfiguration::fromArray($this->getJobConfiguration());
+    }
+
+    private function incAttemptsCount(): void
+    {
+        $this->setAttemptsCount($this->getAttemptsCount() + 1);
     }
 
     // <<< domain logic

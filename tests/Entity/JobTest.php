@@ -6,6 +6,7 @@ namespace CoreExtensions\JobQueue\Tests\Entity;
 
 use CoreExtensions\JobQueue\Entity\Job;
 use CoreExtensions\JobQueue\ErrorInfo;
+use CoreExtensions\JobQueue\Exception\JobBusinessLogicException;
 use CoreExtensions\JobQueue\Exception\JobSealedInteractionException;
 use CoreExtensions\JobQueue\JobConfiguration;
 use CoreExtensions\JobQueue\Tests\TestingJobCommand;
@@ -14,7 +15,6 @@ use PHPUnit\Framework\TestCase;
 
 // TODO: throws_exceptions tests
 // TODO: chain workflow tests
-// TODO: sealed throw
 final class JobTest extends TestCase
 {
     private Job $job;
@@ -54,18 +54,6 @@ final class JobTest extends TestCase
         $this->assertNull($job->getResult());
         $this->assertNull($job->getErrors());
         $this->assertEquals(JobConfiguration::default()->toArray(), $job->getJobConfiguration()); // using default conf
-    }
-
-    /**
-     * @test
-     */
-    public function it_can_be_sealed(): void
-    {
-        $job = $this->job;
-        $job->sealed(new \DateTimeImmutable(), Job::SEALED_DUE_TIMEOUT);
-
-        $this->assertNotNull($job->getSealedAt());
-        $this->assertNotNull($job->getSealedDue());
     }
 
     /**
@@ -137,7 +125,96 @@ final class JobTest extends TestCase
 
         $this->assertEquals($resolvedAt, $job->getResolvedAt());
         $this->assertEquals($result, $job->getResult());
+        $this->assertEquals(1, $job->getAttemptsCount());
+        $this->assertNull($job->getErrors());
+
+        $this->assertNotNull($job->getSealedAt());
+        $this->assertEquals(Job::SEALED_DUE_RESOLVED, $job->getSealedDue());
     }
+
+    /**
+     * @test
+     */
+    public function it_can_be_failed(): void
+    {
+        $job = $this->provideJob(
+            '99a01a56-3f9d-4bf1-b065-484455cc2847',
+            $this->provideCommand(new \DateTimeImmutable()),
+            new \DateTimeImmutable()
+        );
+        $error = ErrorInfo::fromThrowable(
+            new JobBusinessLogicException('Some description', 10, new \RuntimeException('Previous'))
+        );
+
+        $failedAt = new \DateTimeImmutable();
+        $job->failed($failedAt, $error);
+
+        $this->assertNull($job->getResolvedAt());
+        $this->assertNull($job->getResult());
+        $this->assertEquals($failedAt, $job->getErrors()[0]['date']);
+        $this->assertEquals(1, $job->getAttemptsCount());
+        $this->assertEquals($error->toArray(), $job->getErrors()[0]['error']);
+    }
+
+    /**
+     * @test
+     */
+    public function it_can_be_failed_many_times(): void
+    {
+        $job = $this->provideJob(
+            '99a01a56-3f9d-4bf1-b065-484455cc2847',
+            $this->provideCommand(new \DateTimeImmutable()),
+            new \DateTimeImmutable()
+        );
+        $job->configure(JobConfiguration::default()->withMaxRetries(3));
+
+        $error1 = ErrorInfo::fromThrowable(
+            new JobBusinessLogicException('Some description 1', 10, new \RuntimeException('Previous 1'))
+        );
+        $failedAt1 = new \DateTimeImmutable();
+        $job->failed($failedAt1, $error1);
+
+        $error2 = ErrorInfo::fromThrowable(
+            new JobBusinessLogicException('Some description 2', 10, new \RuntimeException('Previous 2'))
+        );
+        $failedAt2 = new \DateTimeImmutable();
+        $job->failed($failedAt2, $error2);
+
+        // can't be resolved
+        $this->assertNull($job->getResolvedAt());
+        $this->assertNull($job->getResult());
+
+        // properly counts attempts
+        $this->assertEquals(2, $job->getAttemptsCount());
+        $this->assertCount(2, $job->getErrors());
+
+        // not sealed before attempts not reached
+        $this->assertNull($job->getSealedAt());
+        $this->assertNull($job->getSealedDue());
+
+        $error3 = ErrorInfo::fromThrowable(
+            new JobBusinessLogicException('Some description 3', 10, new \RuntimeException('Previous 3'))
+        );
+        $failedAt3 = new \DateTimeImmutable();
+        $job->failed($failedAt3, $error3);
+
+        // sealed only after attempts not reached
+        $this->assertNotNull($job->getSealedAt());
+        $this->assertEquals(Job::SEALED_DUE_MAX_RETRIES_REACHED, $job->getSealedDue());
+    }
+
+    /**
+     * @test
+     */
+    public function it_can_be_sealed(): void
+    {
+        $job = $this->job;
+        $job->sealed(new \DateTimeImmutable(), Job::SEALED_DUE_TIMEOUT);
+
+        $this->assertNotNull($job->getSealedAt());
+        $this->assertNotNull($job->getSealedDue());
+    }
+
 
     /**
      * @test
@@ -147,11 +224,15 @@ final class JobTest extends TestCase
         $job = $this->job;
         $job->sealed(new \DateTimeImmutable(), Job::SEALED_DUE_TIMEOUT);
 
+        // every action should throw exception if job is sealed
         $this->expectException(JobSealedInteractionException::class);
         $job->dispatched(new \DateTimeImmutable(), 'string_id');
 
         $this->expectException(JobSealedInteractionException::class);
         $job->revoked(new \DateTimeImmutable(), Job::REVOKED_FOR_RE_RUN);
+
+        $this->expectException(JobSealedInteractionException::class);
+        $job->revokeAccepted(new \DateTimeImmutable());
 
         $this->expectException(JobSealedInteractionException::class);
         $job->resolved(new \DateTimeImmutable(), ['custom_result' => 1]);
