@@ -51,7 +51,7 @@ final class FailInfo
         );
 
         return self::fromValues(
-            $arr['failedAt'],
+            Helpers::unserializeDateTime($arr['failedAt']),
             $arr['code'],
             $arr['message'],
             $arr['line'],
@@ -64,7 +64,7 @@ final class FailInfo
     public function toArray(): array
     {
         return [
-            'failedAt' => $this->failedAt,
+            'failedAt' => Helpers::serializeDateTime($this->failedAt),
             'errorCode' => $this->errorCode,
             'errorMessage' => $this->errorMessage,
             'errorLine' => $this->errorLine,

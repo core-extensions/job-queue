@@ -8,6 +8,7 @@ use CoreExtensions\JobQueue\Entity\Job;
 use CoreExtensions\JobQueue\FailInfo;
 use CoreExtensions\JobQueue\Exception\JobBusinessLogicException;
 use CoreExtensions\JobQueue\Exception\JobSealedInteractionException;
+use CoreExtensions\JobQueue\Helpers;
 use CoreExtensions\JobQueue\JobConfiguration;
 use CoreExtensions\JobQueue\Tests\TestingJobCommand;
 use CoreExtensions\JobQueue\WorkerInfo;
@@ -45,10 +46,11 @@ final class JobTest extends TestCase
         $this->assertEquals($createdAt, $job->getCreatedAt());
         $this->assertNull($job->getDispatchedAt());
         $this->assertNull($job->getDispatchedMessageId());
+        $this->assertNull($job->getAcceptedAt());
+        $this->assertNull($job->getWorkerInfo());
         $this->assertNull($job->getResolvedAt());
         $this->assertNull($job->getRevokedFor());
-        $this->assertNull($job->getRevokeAcceptedAt());
-        $this->assertNull($job->getWorkerInfo());
+        $this->assertNull($job->getRevokeConfirmedAt());
         $this->assertNull($job->getChainId());
         $this->assertNull($job->getChainPosition());
         $this->assertNull($job->getResult());
@@ -83,6 +85,29 @@ final class JobTest extends TestCase
 
         $this->assertEquals($dispatchedAt, $job->getDispatchedAt());
         $this->assertEquals('random_string_id', $job->getDispatchedMessageId());
+    }
+
+
+    /**
+     * @test
+     */
+    public function it_can_be_accepted(): void
+    {
+        $job = $this->provideJob(
+            '99a01a56-3f9d-4bf1-b065-484455cc2847',
+            $this->provideCommand(new \DateTimeImmutable()),
+            new \DateTimeImmutable()
+        );
+
+        $acceptedAt = new \DateTimeImmutable();
+        $workerInfo = WorkerInfo::fromValues(2, 'worker_2');
+
+        // job must be dispatched before
+        $job->dispatched(new \DateTimeImmutable(), 'random_string_id');
+        $job->accepted($acceptedAt, $workerInfo);
+
+        $this->assertEquals($acceptedAt, $job->getAcceptedAt());
+        $this->assertEquals($workerInfo->toArray(), $job->getWorkerInfo());
     }
 
     /**
@@ -120,6 +145,10 @@ final class JobTest extends TestCase
             'example_date' => new \DateTimeImmutable(),
         ];
 
+        // job must be dispatched and accepted before
+        $job->dispatched(new \DateTimeImmutable(), 'some_string_id');
+        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+
         $resolvedAt = new \DateTimeImmutable();
         $job->resolved($resolvedAt, $result);
 
@@ -149,11 +178,15 @@ final class JobTest extends TestCase
             new JobBusinessLogicException('Some description', 10, new \RuntimeException('Previous'))
         );
 
+        // job must be dispatched and accepted before
+        $job->dispatched(new \DateTimeImmutable(), 'some_string_id');
+        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+
         $job->failed($failedAt, $error);
 
         $this->assertNull($job->getResolvedAt());
         $this->assertNull($job->getResult());
-        $this->assertEquals($failedAt, $job->getErrors()[0]['failedAt']);
+        $this->assertEquals(Helpers::serializeDateTime($failedAt), $job->getErrors()[0]['failedAt']);
         $this->assertEquals(1, $job->getAttemptsCount());
         $this->assertEquals($error->toArray(), $job->getErrors()[0]);
     }
@@ -169,6 +202,10 @@ final class JobTest extends TestCase
             new \DateTimeImmutable()
         );
         $job->configure(JobConfiguration::default()->withMaxRetries(3));
+
+        // job must be dispatched and accepted before
+        $job->dispatched(new \DateTimeImmutable(), 'some_string_id');
+        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
 
         $failedAt1 = new \DateTimeImmutable();
         $error1 = FailInfo::fromThrowable(
@@ -234,10 +271,13 @@ final class JobTest extends TestCase
         $job->dispatched(new \DateTimeImmutable(), 'string_id');
 
         $this->expectException(JobSealedInteractionException::class);
+        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+
+        $this->expectException(JobSealedInteractionException::class);
         $job->revoked(new \DateTimeImmutable(), Job::REVOKED_FOR_RE_RUN);
 
         $this->expectException(JobSealedInteractionException::class);
-        $job->revokeAccepted(new \DateTimeImmutable());
+        $job->revokeConfirmed(new \DateTimeImmutable());
 
         $this->expectException(JobSealedInteractionException::class);
         $job->resolved(new \DateTimeImmutable(), ['custom_result' => 1]);
@@ -250,9 +290,6 @@ final class JobTest extends TestCase
 
         $this->expectException(JobSealedInteractionException::class);
         $job->bindToChain('1ab7d89d-fa15-4fb4-823b-4c3f08a16df3', 1);
-
-        $this->expectException(JobSealedInteractionException::class);
-        $job->bindWorkerInfo(WorkerInfo::fromValues(123, 'app'));
     }
 
     // TODO: chain tests

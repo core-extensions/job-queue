@@ -6,6 +6,7 @@ namespace CoreExtensions\JobQueue\Entity;
 
 use CoreExtensions\JobQueue\FailInfo;
 use CoreExtensions\JobQueue\Exception\JobSealedInteractionException;
+use CoreExtensions\JobQueue\Helpers;
 use CoreExtensions\JobQueue\JobCommandInterface;
 use CoreExtensions\JobQueue\JobConfiguration;
 use CoreExtensions\JobQueue\JobManager;
@@ -90,6 +91,22 @@ class Job
     private ?string $dispatchedMessageId = null;
 
     /**
+     * Дата начала обработки.
+     *
+     * @ORM\Column(type="datetimetz_immutable")
+     */
+    private ?\DateTimeImmutable $acceptedAt = null;
+
+    /**
+     * Информация о worker который сделал accepted.
+     *
+     * @see WorkerInfo
+     *
+     * @ORM\Column(type="json", nullable=true)
+     */
+    private ?array $workerInfo = null;
+
+    /**
      * Дата отмены.
      *
      * @ORM\Column(type="datetimetz_immutable", nullable=true)
@@ -106,16 +123,7 @@ class Job
      *
      * @ORM\Column(type="datetimetz_immutable", nullable=true)
      */
-    private ?\DateTimeImmutable $revokeAcceptedAt = null;
-
-    /**
-     * Информация о worker.
-     *
-     * @see WorkerInfo
-     *
-     * @ORM\Column(type="json", nullable=true)
-     */
-    private ?array $workerInfo = null;
+    private ?\DateTimeImmutable $revokeConfirmedAt = null;
 
     /**
      * Признак chained очереди.
@@ -188,7 +196,7 @@ class Job
      * workflow-методы работать не будут.
      *
      * Это финальное состояние, оно возникает после:
-     *  1) revoke => revokeAccepted => sealed
+     *  1) revoke => revokeConfirmed => sealed
      *  2) failed => max retries reached => sealed
      *  3) resolved => sealed
      *  4) timeout reached => sealed
@@ -223,12 +231,21 @@ class Job
         return $res;
     }
 
+    /**
+     * Вызывается когда удалось опубликовать в bus.
+     */
     public function dispatched(\DateTimeImmutable $dispatchedAt, ?string $dispatchedMessageId): void
     {
         Assert::greaterThanEq(
             $dispatchedAt->getTimestamp(),
             $this->getCreatedAt()->getTimestamp(),
-            sprintf('Date of param "%s" must be later than "createdAt" in "%s"', 'dispatchedAt', __METHOD__)
+            sprintf(
+                'Job "%s" cannot be dispatched "%s" earlier than created "%s" in "%s"',
+                $this->getJobId(),
+                Helpers::serializeDateTime($dispatchedAt),
+                Helpers::serializeDateTime($this->getDispatchedAt()),
+                __METHOD__
+            )
         );
         Assert::nullOrStringNotEmpty(
             $dispatchedMessageId,
@@ -241,14 +258,48 @@ class Job
     }
 
     /**
-     * (вызывается клиентом для отмены)
+     * Вызывается когда handler получил задачу из bus.
+     */
+    public function accepted(\DateTimeImmutable $acceptedAt, WorkerInfo $workerInfo): void
+    {
+        $dispatchedAt = $this->getDispatchedAt();
+
+        Assert::notNull(
+            $dispatchedAt,
+            sprintf('Attempt to accept non dispatched job "%s" in "%s"', $this->getJobId(), __METHOD__)
+        );
+        Assert::greaterThanEq(
+            $acceptedAt->getTimestamp(),
+            $dispatchedAt->getTimestamp(),
+            sprintf(
+                'Job "%s" cannot be accepted "%s" earlier than dispatched "%s" in "%s"',
+                $this->getJobId(),
+                Helpers::serializeDateTime($acceptedAt),
+                Helpers::serializeDateTime($this->getDispatchedAt()),
+                __METHOD__
+            )
+        );
+        $this->assertJobNotSealed('accepted');
+
+        $this->setAcceptedAt($acceptedAt);
+        $this->setWorkerInfo($workerInfo->toArray());
+    }
+
+    /**
+     * Вызывается клиентом для отмены.
      */
     public function revoked(\DateTimeImmutable $revokedAt, int $revokedFor): void
     {
         Assert::greaterThanEq(
             $revokedAt->getTimestamp(),
             $this->getCreatedAt()->getTimestamp(),
-            sprintf('Jon cannot be revoked before than it been created in "%s"', __METHOD__)
+            sprintf(
+                'Job "%s" cannot be revoked "%s" earlier than created "%s" in "%s"',
+                $this->getJobId(),
+                Helpers::serializeDateTime($revokedAt),
+                Helpers::serializeDateTime($this->getCreatedAt()),
+                __METHOD__
+            )
         );
         $this->assertJobNotSealed('revoked');
 
@@ -257,31 +308,58 @@ class Job
     }
 
     /**
-     * (вызывается handlers для подтверждения получения отмены)
+     * Вызывается когда handler получил знание об отмене.
      * (TODO: будет понятно после создания handler)
+     * (TODO: в итерациях?)
      */
-    public function revokeAccepted(\DateTimeImmutable $revokeAcceptedAt): void
+    public function revokeConfirmed(\DateTimeImmutable $revokeConfirmedAt): void
     {
+        $revokedAt = $this->getRevokedAt();
+
         Assert::notNull(
-            $this->getRevokedAt(),
-            sprintf('Attempt to accept non revoked job "%s" in "%s"', $this->getJobId(), __METHOD__)
+            $revokedAt,
+            sprintf('Attempt to confirm revoke of non revoked job "%s" in "%s"', $this->getJobId(), __METHOD__)
         );
         Assert::greaterThanEq(
-            $revokeAcceptedAt->getTimestamp(),
-            $this->getRevokedAt()->getTimestamp(),
-            sprintf('Jon cannot be revoked before than it been created in "%s"', __METHOD__)
+            $revokeConfirmedAt->getTimestamp(),
+            $revokedAt->getTimestamp(),
+            sprintf(
+                'Job "%s" revoking cannot be confirmed "%s" earlier than revoked "%s" in "%s"',
+                $this->getJobId(),
+                Helpers::serializeDateTime($revokeConfirmedAt),
+                Helpers::serializeDateTime($revokedAt),
+                __METHOD__
+            )
         );
-        $this->assertJobNotSealed('revokeAccepted');
+        $this->assertJobNotSealed('revokeConfirmed');
 
-        $this->setRevokeAcceptedAt($revokeAcceptedAt);
-        $this->sealed($revokeAcceptedAt, self::SEALED_DUE_REVOKED);
+        $this->setRevokeConfirmedAt($revokeConfirmedAt);
+        $this->sealed($revokeConfirmedAt, self::SEALED_DUE_REVOKED);
     }
 
     /**
-     * ($result - специально сделал not nullable, чтобы хоть что то о результате всегда писали)
+     * Вызывается в handler при успешном выполнении.
+     * (result - специально сделал not nullable, чтобы хоть что то о результате всегда писали)
      */
     public function resolved(\DateTimeImmutable $resolvedAt, array $result): void
     {
+        $acceptedAt = $this->getAcceptedAt();
+
+        Assert::notNull(
+            $acceptedAt,
+            sprintf('Attempt to resolve non accepted job "%s" in "%s"', $this->getJobId(), __METHOD__)
+        );
+        Assert::greaterThanEq(
+            $resolvedAt->getTimestamp(),
+            $acceptedAt->getTimestamp(),
+            sprintf(
+                'Job "%s" cannot be resolved "%s" earlier than accepted "%s" in "%s"',
+                $this->getJobId(),
+                Helpers::serializeDateTime($acceptedAt),
+                Helpers::serializeDateTime($this->getDispatchedAt()),
+                __METHOD__
+            )
+        );
         Assert::notEmpty(
             $result,
             sprintf('Result must be not empty array for job "%s" in "%s"', $this->jobId, __METHOD__)
@@ -296,8 +374,28 @@ class Job
         $this->sealed($resolvedAt, self::SEALED_DUE_RESOLVED);
     }
 
+    /**
+     * Вызывается в handler при каждом fail.
+     */
     public function failed(\DateTimeImmutable $failedAt, FailInfo $errorInfo): void
     {
+        $acceptedAt = $this->getAcceptedAt();
+
+        Assert::notNull(
+            $acceptedAt,
+            sprintf('Attempt to failed non accepted job "%s" in "%s"', $this->getJobId(), __METHOD__)
+        );
+        Assert::greaterThanEq(
+            $failedAt->getTimestamp(),
+            $acceptedAt->getTimestamp(),
+            sprintf(
+                'Job "%s" cannot be failed "%s" earlier than accepted "%s" in "%s"',
+                $this->getJobId(),
+                Helpers::serializeDateTime($acceptedAt),
+                Helpers::serializeDateTime($this->getDispatchedAt()),
+                __METHOD__
+            )
+        );
         $this->assertJobNotSealed('failed');
 
         $this->commitFailedAttempt($failedAt, $errorInfo);
@@ -320,12 +418,6 @@ class Job
 
         $this->chainId = $chainId;
         $this->chainPosition = $chainPosition;
-    }
-
-    public function bindWorkerInfo(WorkerInfo $workerInfo): void
-    {
-        $this->assertJobNotSealed('revoked');
-        $this->setWorkerInfo($workerInfo->toArray());
     }
 
     public function configure(JobConfiguration $jobConfiguration): void
@@ -462,14 +554,14 @@ class Job
         $this->revokedFor = $revokedFor;
     }
 
-    public function getRevokeAcceptedAt(): ?\DateTimeImmutable
+    public function getRevokeConfirmedAt(): ?\DateTimeImmutable
     {
-        return $this->revokeAcceptedAt;
+        return $this->revokeConfirmedAt;
     }
 
-    public function setRevokeAcceptedAt(?\DateTimeImmutable $revokeAcceptedAt): void
+    public function setRevokeConfirmedAt(?\DateTimeImmutable $revokeConfirmedAt): void
     {
-        $this->revokeAcceptedAt = $revokeAcceptedAt;
+        $this->revokeConfirmedAt = $revokeConfirmedAt;
     }
 
     public function getWorkerInfo(): ?array
@@ -580,5 +672,15 @@ class Job
     public function setSealedDue(?int $sealedDue): void
     {
         $this->sealedDue = $sealedDue;
+    }
+
+    public function getAcceptedAt(): ?\DateTimeImmutable
+    {
+        return $this->acceptedAt;
+    }
+
+    public function setAcceptedAt(?\DateTimeImmutable $acceptedAt): void
+    {
+        $this->acceptedAt = $acceptedAt;
     }
 }
