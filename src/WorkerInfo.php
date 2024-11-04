@@ -35,7 +35,7 @@ final class WorkerInfo
         ];
     }
 
-    public static function fromArray(array $arr): self
+    private static function fromArray(array $arr): self
     {
         Assert::keyExists($arr, 'pid', sprintf('No param "%s" in "%s"', 'pid', __METHOD__));
         Assert::keyExists($arr, 'name', sprintf('No param "%s" in "%s"', 'pid', __METHOD__));

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueue\Entity;
 
-use CoreExtensions\JobQueue\ErrorInfo;
+use CoreExtensions\JobQueue\FailInfo;
 use CoreExtensions\JobQueue\Exception\JobSealedInteractionException;
 use CoreExtensions\JobQueue\JobCommandInterface;
 use CoreExtensions\JobQueue\JobConfiguration;
@@ -156,7 +156,7 @@ class Job
     /**
      * Массив из ErrorInfo, где ключи ($attemptsCount - 1) (нумерация с нуля).
      *
-     * @see ErrorInfo[]
+     * @see FailInfo[]
      *
      * @ORM\Column(type="json", nullable=true)
      */
@@ -296,7 +296,7 @@ class Job
         $this->sealed($resolvedAt, self::SEALED_DUE_RESOLVED);
     }
 
-    public function failed(\DateTimeImmutable $failedAt, ErrorInfo $errorInfo): void
+    public function failed(\DateTimeImmutable $failedAt, FailInfo $errorInfo): void
     {
         $this->assertJobNotSealed('failed');
 
@@ -340,17 +340,13 @@ class Job
         $this->setSealedDue($due);
     }
 
-    private function commitFailedAttempt(\DateTimeImmutable $failedAt, ErrorInfo $error): void
+    private function commitFailedAttempt(\DateTimeImmutable $failedAt, FailInfo $failInfo): void
     {
-        $errors = $this->getErrors();
-        // индексация с нуля
-        // (специально без индекса (getAttemptsCount()]), чтобы увидеть проблему)
-        $errors[] = [
-            'date' => $failedAt,
-            'error' => $error->toArray(),
-        ];
-
         $this->incAttemptsCount();
+
+        $errors = $this->getErrors() ?? [];
+        $errors[] = $failInfo->toArray();
+
         $this->setErrors($errors);
     }
 

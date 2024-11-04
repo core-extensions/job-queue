@@ -56,18 +56,6 @@ final class JobConfiguration
 
     // <<< fluent setters
 
-    public static function fromValues(int $maxRetries, ?int $timeout): self
-    {
-        Assert::positiveInteger($maxRetries, sprintf('Invalid param "%s" in "%s"', 'maxRetries', __METHOD__));
-        Assert::nullOrPositiveInteger($timeout, sprintf('Invalid param "%s" in "%s"', 'timeout', __METHOD__));
-
-        $res = new self();
-        $res->maxRetries = $maxRetries;
-        $res->timeout = $timeout;
-
-        return $res;
-    }
-
     public static function fromArray(array $arr): self
     {
         Assert::keyExists($arr, 'maxRetries', sprintf('No param "%s" in "%s"', 'maxRetries', __METHOD__));
@@ -85,6 +73,18 @@ final class JobConfiguration
             'maxRetries' => $this->maxRetries,
             'timeout' => $this->timeout,
         ];
+    }
+
+    private static function fromValues(int $maxRetries, ?int $timeout): self
+    {
+        Assert::positiveInteger($maxRetries, sprintf('Invalid param "%s" in "%s"', 'maxRetries', __METHOD__));
+        Assert::nullOrPositiveInteger($timeout, sprintf('Invalid param "%s" in "%s"', 'timeout', __METHOD__));
+
+        $res = new self();
+        $res->maxRetries = $maxRetries;
+        $res->timeout = $timeout;
+
+        return $res;
     }
 
     public function getMaxRetries(): int

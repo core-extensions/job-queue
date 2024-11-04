@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace CoreExtensions\JobQueue\Tests\Entity;
 
 use CoreExtensions\JobQueue\Entity\Job;
-use CoreExtensions\JobQueue\ErrorInfo;
+use CoreExtensions\JobQueue\FailInfo;
 use CoreExtensions\JobQueue\Exception\JobBusinessLogicException;
 use CoreExtensions\JobQueue\Exception\JobSealedInteractionException;
 use CoreExtensions\JobQueue\JobConfiguration;
@@ -142,18 +142,20 @@ final class JobTest extends TestCase
             $this->provideCommand(new \DateTimeImmutable()),
             new \DateTimeImmutable()
         );
-        $error = ErrorInfo::fromThrowable(
+
+        $failedAt = new \DateTimeImmutable();
+        $error = FailInfo::fromThrowable(
+            $failedAt,
             new JobBusinessLogicException('Some description', 10, new \RuntimeException('Previous'))
         );
 
-        $failedAt = new \DateTimeImmutable();
         $job->failed($failedAt, $error);
 
         $this->assertNull($job->getResolvedAt());
         $this->assertNull($job->getResult());
-        $this->assertEquals($failedAt, $job->getErrors()[0]['date']);
+        $this->assertEquals($failedAt, $job->getErrors()[0]['failedAt']);
         $this->assertEquals(1, $job->getAttemptsCount());
-        $this->assertEquals($error->toArray(), $job->getErrors()[0]['error']);
+        $this->assertEquals($error->toArray(), $job->getErrors()[0]);
     }
 
     /**
@@ -168,16 +170,18 @@ final class JobTest extends TestCase
         );
         $job->configure(JobConfiguration::default()->withMaxRetries(3));
 
-        $error1 = ErrorInfo::fromThrowable(
+        $failedAt1 = new \DateTimeImmutable();
+        $error1 = FailInfo::fromThrowable(
+            $failedAt1,
             new JobBusinessLogicException('Some description 1', 10, new \RuntimeException('Previous 1'))
         );
-        $failedAt1 = new \DateTimeImmutable();
         $job->failed($failedAt1, $error1);
 
-        $error2 = ErrorInfo::fromThrowable(
+        $failedAt2 = new \DateTimeImmutable();
+        $error2 = FailInfo::fromThrowable(
+            $failedAt2,
             new JobBusinessLogicException('Some description 2', 10, new \RuntimeException('Previous 2'))
         );
-        $failedAt2 = new \DateTimeImmutable();
         $job->failed($failedAt2, $error2);
 
         // can't be resolved
@@ -192,10 +196,11 @@ final class JobTest extends TestCase
         $this->assertNull($job->getSealedAt());
         $this->assertNull($job->getSealedDue());
 
-        $error3 = ErrorInfo::fromThrowable(
+        $failedAt3 = new \DateTimeImmutable();
+        $error3 = FailInfo::fromThrowable(
+            $failedAt3,
             new JobBusinessLogicException('Some description 3', 10, new \RuntimeException('Previous 3'))
         );
-        $failedAt3 = new \DateTimeImmutable();
         $job->failed($failedAt3, $error3);
 
         // sealed only after attempts not reached
@@ -238,7 +243,10 @@ final class JobTest extends TestCase
         $job->resolved(new \DateTimeImmutable(), ['custom_result' => 1]);
 
         $this->expectException(JobSealedInteractionException::class);
-        $job->failed(new \DateTimeImmutable(), ErrorInfo::fromValues(1, 'message', 1, 'file', 'previous_message'));
+        $job->failed(
+            new \DateTimeImmutable(),
+            FailInfo::fromThrowable(new \DateTimeImmutable(), new \RuntimeException('Hello'))
+        );
 
         $this->expectException(JobSealedInteractionException::class);
         $job->bindToChain('1ab7d89d-fa15-4fb4-823b-4c3f08a16df3', 1);
