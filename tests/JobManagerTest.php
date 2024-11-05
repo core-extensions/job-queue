@@ -7,6 +7,7 @@ namespace CoreExtensions\JobQueue\Tests;
 use CoreExtensions\JobQueue\Entity\Job;
 use CoreExtensions\JobQueue\JobCommandFactoryInterface;
 use CoreExtensions\JobQueue\JobManager;
+use CoreExtensions\JobQueue\MessageIdResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Envelope;
@@ -18,6 +19,7 @@ final class JobManagerTest extends TestCase
     private EntityManagerInterface $entityManager;
     private MessageBusInterface $messageBus;
     private JobCommandFactoryInterface $jobCommandFactory;
+    private JobManager $jobManager;
     private Job $job;
 
     protected function setUp(): void
@@ -38,6 +40,7 @@ final class JobManagerTest extends TestCase
             ),
             new \DateTimeImmutable()
         );
+        $this->jobManager = new JobManager($this->entityManager, $this->messageBus, $this->jobCommandFactory, new MessageIdResolver());
     }
 
     /**
@@ -61,7 +64,8 @@ final class JobManagerTest extends TestCase
         //     ->andReturn($transportStampMock);
 
         $job = $this->job;
-        $jobManager = new JobManager($this->entityManager, $this->messageBus, $this->jobCommandFactory);
+        $jobManager = $this->jobManager;
+        
         $jobManager->enqueueJob($job);
 
         $this->assertNotNull($job->getDispatchedAt());
@@ -83,7 +87,7 @@ final class JobManagerTest extends TestCase
         $job2 = Job::initNew('a0752bbd-7e12-43ac-b241-a26c865b2c6d', TestingJobCommand::fromValues(2, 'test2', new \DateTimeImmutable(), []), new \DateTimeImmutable());
         $job3 = Job::initNew('4061eecd-1262-4ff0-be38-09d7432ff608', TestingJobCommand::fromValues(3, 'test3', new \DateTimeImmutable(), []), new \DateTimeImmutable());
 
-        $jobManager = new JobManager($this->entityManager, $this->messageBus, $this->jobCommandFactory);
+        $jobManager = $this->jobManager;
         $jobManager->enqueueChain('be3a7e26-aa34-454b-9c5d-121356e13910', [$job1, $job2, $job3]);
 
         $this->assertNotNull($job1->getDispatchedAt());

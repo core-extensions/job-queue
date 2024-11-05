@@ -8,7 +8,6 @@ use CoreExtensions\JobQueue\Entity\Job;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
 
 /**
  * Управляет очередью.
@@ -18,15 +17,18 @@ final class JobManager
     private EntityManagerInterface $entityManager;
     private MessageBusInterface $messageBus;
     private JobCommandFactoryInterface $jobCommandFactory;
+    private MessageIdResolver $messageIdResolver;
 
     public function __construct(
         EntityManagerInterface $entityManager,
         MessageBusInterface $messageBus,
-        JobCommandFactoryInterface $jobCommandFactory
+        JobCommandFactoryInterface $jobCommandFactory,
+        MessageIdResolver $messageIdResolver
     ) {
         $this->entityManager = $entityManager;
         $this->messageBus = $messageBus;
         $this->jobCommandFactory = $jobCommandFactory;
+        $this->messageIdResolver = $messageIdResolver;
     }
 
     /**
@@ -46,7 +48,7 @@ final class JobManager
             $envelope = $this->messageBus->dispatch($message);
 
             // 2) mark as dispatched and persist (because new entity)
-            $job->dispatched(new \DateTimeImmutable(), $this->resolveEnvelopeMessageId($envelope));
+            $job->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($envelope));
             $this->entityManager->persist($job);
 
             // 3) writing to db
@@ -100,7 +102,7 @@ final class JobManager
                 $envelope = $this->messageBus->dispatch($message);
 
                 // 3) mark as dispatched and persist (because new entity)
-                $job->dispatched(new \DateTimeImmutable(), $this->resolveEnvelopeMessageId($envelope));
+                $job->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($envelope));
             }
 
             $this->entityManager->flush();
@@ -109,18 +111,5 @@ final class JobManager
             $this->entityManager->rollBack();
             throw $tr;
         }
-    }
-
-    private function resolveEnvelopeMessageId(Envelope $envelope): ?string
-    {
-        /**
-         * @var TransportMessageIdStamp $transportStamp
-         */
-        $transportStamp = $envelope->last(TransportMessageIdStamp::class);
-        if (null === $transportStamp) {
-            return null;
-        }
-
-        return (string)$transportStamp->getId();
     }
 }
