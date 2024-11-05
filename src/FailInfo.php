@@ -83,7 +83,11 @@ final class FailInfo
         ?int $previousErrorCode = null,
         ?string $previousErrorMessage = null
     ): self {
-        Assert::positiveInteger($errorCode, sprintf('Invalid param "%s" in "%s"', 'code', __METHOD__));
+        Assert::greaterThanEq(
+            $errorCode,
+            0,
+            sprintf('Invalid param "%s" value "%d" in "%s"', 'code', $errorCode, __METHOD__)
+        );
         Assert::stringNotEmpty($errorMessage, sprintf('Invalid param "%s" in "%s"', 'message', __METHOD__));
         Assert::positiveInteger($errorLine, sprintf('Invalid param "%s" in "%s"', 'line', __METHOD__));
         Assert::stringNotEmpty($errorFile, sprintf('Invalid param "%s" in "%s"', 'file', __METHOD__));

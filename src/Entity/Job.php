@@ -43,10 +43,10 @@ class Job
     /**
      * Причины для sealed.
      */
-    public const SEALED_DUE_REVOKED = 10;
+    public const SEALED_DUE_REVOKED_AND_CONFIRMED = 10;
     public const SEALED_DUE_RESOLVED = 20;
-    public const SEALED_DUE_MAX_RETRIES_REACHED = 30;
-    public const SEALED_DUE_TIMEOUT = 31;
+    public const SEALED_DUE_FAILED_BY_MAX_RETRIES_REACHED = 30;
+    public const SEALED_DUE_FAILED_TIMEOUT = 31;
 
     /**
      * @ORM\Id
@@ -334,7 +334,7 @@ class Job
         $this->assertJobNotSealed('revokeConfirmed');
 
         $this->setRevokeConfirmedAt($revokeConfirmedAt);
-        $this->sealed($revokeConfirmedAt, self::SEALED_DUE_REVOKED);
+        $this->sealed($revokeConfirmedAt, self::SEALED_DUE_REVOKED_AND_CONFIRMED);
     }
 
     /**
@@ -404,14 +404,13 @@ class Job
         $maxRetries = $jobConfiguration->getMaxRetries();
 
         if ($this->getAttemptsCount() >= $maxRetries) {
-            $this->sealed($failedAt, self::SEALED_DUE_MAX_RETRIES_REACHED);
+            $this->sealed($failedAt, self::SEALED_DUE_FAILED_BY_MAX_RETRIES_REACHED);
         }
     }
 
-    // TODO: private либо makeСhained здесь
     public function bindToChain(string $chainId, int $chainPosition): void
     {
-        $this->assertJobNotSealed('revoked');
+        $this->assertJobNotSealed('bindToChain');
 
         Assert::uuid($chainId, sprintf('Invalid param "%s" in "%s"', 'chainId', __METHOD__));
         Assert::greaterThanEq($chainPosition, 0, sprintf('Invalid param "%s" in "%s"', 'chainPosition', __METHOD__));
