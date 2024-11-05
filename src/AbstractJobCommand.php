@@ -25,6 +25,12 @@ abstract class AbstractJobCommand
      */
     private ?string $jobId = null;
 
+    final public function __construct(?string $jobId)
+    {
+        $this->jobId = $jobId;
+    }
+
+
     /**
      * (присутствует здесь потому что удобно доставать в handler)
      */

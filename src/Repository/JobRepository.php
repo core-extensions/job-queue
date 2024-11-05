@@ -22,7 +22,7 @@ final class JobRepository extends ServiceEntityRepository
 
     public function findNextChained(string $chainId, int $currPosition): ?Job
     {
-
+        return null;
     }
 
     public function findByCriteria(array $criteria): ?Job

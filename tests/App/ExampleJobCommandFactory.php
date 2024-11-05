@@ -13,7 +13,7 @@ class ExampleJobCommandFactory implements \CoreExtensions\JobQueue\JobCommandFac
     /**
      * (типизацию придется убрать)
      */
-    public function createFromJob(Job $job): \CoreExtensions\JobQueue\AbstractJobCommand
+    public function createFromJob(Job $job): \CoreExtensions\JobQueue\JobCommandInterface
     {
         /** @noinspection DegradedSwitchInspection */
         switch ($job->getJobType()) {
