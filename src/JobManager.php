@@ -36,8 +36,6 @@ final class JobManager
      * TODO: в handlers придется обрабатывать случай когда нет Job (OrphanJobCommandException)
      *
      * @throws \Throwable
-     *
-     * @see JobCommandOrphanException
      */
     public function enqueueJob(Job $job): void
     {

@@ -30,6 +30,7 @@
 * описать текущие таски
 * возможно можно обойтись и без таблицы.
 * подумать об использовании php-enqueue/laravel-queue (task queue) вместо symfnoy/messenger (message bus)
+* jobId VO
 
 ### Решение
 
