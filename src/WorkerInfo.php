@@ -17,8 +17,8 @@ final class WorkerInfo
 
     public static function fromValues(int $pid, string $name): self
     {
-        Assert::positiveInteger($pid, sprintf('Invalid param "%s" in "%s"', 'pid', __METHOD__));
-        Assert::stringNotEmpty($name, sprintf('Invalid param "%s" in "%s"', 'name', __METHOD__));
+        Assert::positiveInteger($pid, sprintf('Invalid param "%s" value "%s" in "%s"', 'pid', $pid, __METHOD__));
+        Assert::stringNotEmpty($name, sprintf('Invalid param "%s" value "%s" in "%s"', 'name', $name, __METHOD__));
 
         $res = new self();
         $res->pid = $pid;

@@ -72,7 +72,7 @@ abstract class AbstractJobCommand
         $jobId = $arr[self::KEY_JOB_ID] ?? null;
         Assert::nullOrUuid(
             $jobId,
-            sprintf('Invalid param "%s" in "%s"', self::KEY_JOB_ID, __METHOD__)
+            sprintf('Invalid param "%s" value "%s" in "%s"', self::KEY_JOB_ID, $jobId, __METHOD__)
         );
 
         $res = new static();

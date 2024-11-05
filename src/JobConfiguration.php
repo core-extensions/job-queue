@@ -77,8 +77,14 @@ final class JobConfiguration
 
     private static function fromValues(int $maxRetries, ?int $timeout): self
     {
-        Assert::positiveInteger($maxRetries, sprintf('Invalid param "%s" in "%s"', 'maxRetries', __METHOD__));
-        Assert::nullOrPositiveInteger($timeout, sprintf('Invalid param "%s" in "%s"', 'timeout', __METHOD__));
+        Assert::positiveInteger(
+            $maxRetries,
+            sprintf('Invalid param "%s" value "%s" in "%s"', 'maxRetries', $maxRetries, __METHOD__)
+        );
+        Assert::nullOrPositiveInteger(
+            $timeout,
+            sprintf('Invalid param "%s" value "%s" in "%s"', 'timeout', $timeout, __METHOD__)
+        );
 
         $res = new self();
         $res->maxRetries = $maxRetries;

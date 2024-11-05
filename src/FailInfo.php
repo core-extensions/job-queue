@@ -86,18 +86,27 @@ final class FailInfo
         Assert::greaterThanEq(
             $errorCode,
             0,
-            sprintf('Invalid param "%s" value "%d" in "%s"', 'code', $errorCode, __METHOD__)
+            sprintf('Invalid param "%s" value "%s" in "%s"', 'code', $errorCode, __METHOD__)
         );
-        Assert::stringNotEmpty($errorMessage, sprintf('Invalid param "%s" in "%s"', 'message', __METHOD__));
-        Assert::positiveInteger($errorLine, sprintf('Invalid param "%s" in "%s"', 'line', __METHOD__));
-        Assert::stringNotEmpty($errorFile, sprintf('Invalid param "%s" in "%s"', 'file', __METHOD__));
+        Assert::stringNotEmpty(
+            $errorMessage,
+            sprintf('Invalid param "%s" value "%s" in "%s"', 'message', $errorMessage, __METHOD__)
+        );
+        Assert::positiveInteger(
+            $errorLine,
+            sprintf('Invalid param "%s" value "%s" in "%s"', 'line', $errorLine, __METHOD__)
+        );
+        Assert::stringNotEmpty(
+            $errorFile,
+            sprintf('Invalid param "%s" value "%s" in "%s"', 'file', $errorFile, __METHOD__)
+        );
         Assert::nullOrInteger(
             $previousErrorCode,
-            sprintf('Invalid param "%s" in "%s"', 'previousErrorCode', __METHOD__)
+            sprintf('Invalid param "%s" value "%s" in "%s"', 'previousErrorCode', $previousErrorCode, __METHOD__)
         );
         Assert::nullOrStringNotEmpty(
             $previousErrorMessage,
-            sprintf('Invalid param "%s" in "%s"', 'previousErrorMessage', __METHOD__)
+            sprintf('Invalid param "%s" value "%s" in "%s"', 'previousErrorMessage', $previousErrorMessage, __METHOD__)
         );
 
         $res = new self();

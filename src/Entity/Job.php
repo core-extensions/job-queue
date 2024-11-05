@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueue\Entity;
 
-use CoreExtensions\JobQueue\FailInfo;
 use CoreExtensions\JobQueue\Exception\JobSealedInteractionException;
+use CoreExtensions\JobQueue\FailInfo;
 use CoreExtensions\JobQueue\Helpers;
 use CoreExtensions\JobQueue\JobCommandInterface;
 use CoreExtensions\JobQueue\JobConfiguration;
@@ -249,7 +249,7 @@ class Job
         );
         Assert::nullOrStringNotEmpty(
             $dispatchedMessageId,
-            sprintf('Invalid param "%s" in "%s"', 'dispatchedMessageId', __METHOD__)
+            sprintf('Invalid param "%s" value "%s" in "%s"', 'dispatchedMessageId', $dispatchedMessageId, __METHOD__)
         );
         $this->assertJobNotSealed('dispatched');
 
@@ -412,8 +412,12 @@ class Job
     {
         $this->assertJobNotSealed('bindToChain');
 
-        Assert::uuid($chainId, sprintf('Invalid param "%s" in "%s"', 'chainId', __METHOD__));
-        Assert::greaterThanEq($chainPosition, 0, sprintf('Invalid param "%s" in "%s"', 'chainPosition', __METHOD__));
+        Assert::uuid($chainId, sprintf('Invalid param "%s" value "%s" in "%s"', 'chainId', $chainId, __METHOD__));
+        Assert::greaterThanEq(
+            $chainPosition,
+            0,
+            sprintf('Invalid param "%s" value "%s" in "%s"', 'chainPosition', $chainPosition, __METHOD__)
+        );
 
         $this->chainId = $chainId;
         $this->chainPosition = $chainPosition;
