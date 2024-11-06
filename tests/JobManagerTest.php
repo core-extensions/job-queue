@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue\Tests;
+namespace CoreExtensions\JobQueueBundle\Tests;
 
-use CoreExtensions\JobQueue\Entity\Job;
-use CoreExtensions\JobQueue\JobCommandFactoryInterface;
-use CoreExtensions\JobQueue\JobManager;
-use CoreExtensions\JobQueue\MessageIdResolver;
+use CoreExtensions\JobQueueBundle\Entity\Job;
+use CoreExtensions\JobQueueBundle\JobCommandFactoryInterface;
+use CoreExtensions\JobQueueBundle\JobManager;
+use CoreExtensions\JobQueueBundle\Service\MessageIdResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Envelope;
@@ -65,7 +65,7 @@ final class JobManagerTest extends TestCase
 
         $job = $this->job;
         $jobManager = $this->jobManager;
-        
+
         $jobManager->enqueueJob($job);
 
         $this->assertNotNull($job->getDispatchedAt());

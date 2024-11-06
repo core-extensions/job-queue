@@ -2,21 +2,20 @@
   "name": "core-extensions/job-queue",
   "version": "0.0.1",
   "description": "A simple approach to job-queue.",
-  "type": "library",
+  "type": "symfony-bundle",
   "license": "MIT",
   "autoload": {
     "psr-4": {
-      "CoreExtensions\\JobQueue\\": "src/"
+      "CoreExtensions\\JobQueueBundle\\": "src/"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "CoreExtensions\\JobQueue\\Tests\\": "tests/"
+      "CoreExtensions\\JobQueueBundle\\Tests\\": "tests/"
     }
   },
   "require": {
     "php": "^7.4",
-    "symfony/framework-bundle": "5.4.*",
     "symfony/messenger": "5.4.*",
     "symfony/dependency-injection": "^5.2",
     "doctrine/doctrine-bundle": "^2.2",
@@ -25,13 +24,14 @@
     "webmozart/assert": "^1.7"
   },
   "require-dev": {
+    "symfony/framework-bundle": "^5.4",
     "symfony/test-pack": "^1.1",
     "friendsofphp/php-cs-fixer": "^3.64",
     "mockery/mockery": "^1.6",
     "phpstan/phpstan": "^1.12"
   },
   "scripts": {
-    "cs-fix": "php-cs-fixer fix",
+    "cs-fix": "php-cs-fixer fix --allow-risky=yes",
     "cs-check": "php-cs-fixer fix --dry-run --diff",
     "phpstan": "phpstan analyse src tests",
     "test": "phpunit",

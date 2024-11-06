@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue\Tests;
+namespace CoreExtensions\JobQueueBundle\Tests;
 
-use CoreExtensions\JobQueue\Entity\Job;
-use CoreExtensions\JobQueue\Exception\UnsupportedJobTypeException;
-use CoreExtensions\JobQueue\JobCommandFactoryInterface;
-use CoreExtensions\JobQueue\JobCommandInterface;
+use CoreExtensions\JobQueueBundle\Entity\Job;
+use CoreExtensions\JobQueueBundle\Exception\UnsupportedJobTypeException;
+use CoreExtensions\JobQueueBundle\JobCommandFactoryInterface;
+use CoreExtensions\JobQueueBundle\JobCommandInterface;
 
 final class TestingJobCommandFactory implements JobCommandFactoryInterface
 {

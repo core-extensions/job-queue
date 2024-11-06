@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue\Tests;
+namespace CoreExtensions\JobQueueBundle\Tests;
 
-use CoreExtensions\JobQueue\Entity\Job;
-use CoreExtensions\JobQueue\JobCommandInterface;
+use CoreExtensions\JobQueueBundle\Entity\Job;
+use CoreExtensions\JobQueueBundle\JobCommandInterface;
 
 final class TestingJobCommand implements JobCommandInterface
 {

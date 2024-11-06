@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue;
+namespace CoreExtensions\JobQueueBundle\Middleware;
 
-use CoreExtensions\JobQueue\Entity\Job;
-use CoreExtensions\JobQueue\Exception\JobCommandOrphanException;
-use CoreExtensions\JobQueue\Repository\JobRepository;
+use CoreExtensions\JobQueueBundle\Entity\Job;
+use CoreExtensions\JobQueueBundle\Exception\JobCommandOrphanException;
+use CoreExtensions\JobQueueBundle\JobCommandInterface;
+use CoreExtensions\JobQueueBundle\Repository\JobRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Middleware\MiddlewareInterface;

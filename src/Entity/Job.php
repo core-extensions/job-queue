@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue\Entity;
+namespace CoreExtensions\JobQueueBundle\Entity;
 
-use CoreExtensions\JobQueue\Exception\JobSealedInteractionException;
-use CoreExtensions\JobQueue\FailInfo;
-use CoreExtensions\JobQueue\Helpers;
-use CoreExtensions\JobQueue\JobCommandInterface;
-use CoreExtensions\JobQueue\JobConfiguration;
-use CoreExtensions\JobQueue\JobManager;
-use CoreExtensions\JobQueue\WorkerInfo;
+use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
+use CoreExtensions\JobQueueBundle\FailInfo;
+use CoreExtensions\JobQueueBundle\Helpers;
+use CoreExtensions\JobQueueBundle\JobCommandInterface;
+use CoreExtensions\JobQueueBundle\JobConfiguration;
+use CoreExtensions\JobQueueBundle\JobManager;
+use CoreExtensions\JobQueueBundle\WorkerInfo;
 use Doctrine\ORM\Mapping as ORM;
 use Webmozart\Assert\Assert;
 
@@ -29,7 +29,7 @@ use Webmozart\Assert\Assert;
  * // TODO: sealing ?
  * // TODO: set && get использовать?
  *
- * @ORM\Entity(repositoryClass="CoreExtensions\JobQueue\Repository\JobRepository")
+ * @ORM\Entity(repositoryClass="CoreExtensions\JobQueueBundle\Repository\JobRepository")
  * @ORM\Table(name="orm_jobs", schema="jobs"))
  */
 class Job

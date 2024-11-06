@@ -36,3 +36,14 @@
 
  * Job - doctrine entity
  * JobCommand - сообщение отправляемое в bus и обрабатываемое handlers
+
+### Конфигурирование
+
+```yaml
+job_queue:
+    jobs_table: "orm_jobs"
+```
+
+Команда для запуска worker:
+
+ExecStart=php bin/console messenger:consume async --time-limit=3600 --id=worker_1

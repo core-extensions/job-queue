@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue\Exception;
+namespace CoreExtensions\JobQueueBundle\Exception;
 
-use CoreExtensions\JobQueue\Entity\Job;
+use CoreExtensions\JobQueueBundle\Entity\Job;
 
 final class JobSealedInteractionException extends \RuntimeException implements JobNonRetryableExceptionInterface
 {

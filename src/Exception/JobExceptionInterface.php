@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue\Exception;
+namespace CoreExtensions\JobQueueBundle\Exception;
 
 interface JobExceptionInterface extends \Throwable
 {

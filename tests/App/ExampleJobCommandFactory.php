@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-use CoreExtensions\JobQueue\Entity\Job;
-use CoreExtensions\JobQueue\Exception\UnsupportedJobTypeException;
+use CoreExtensions\JobQueueBundle\Entity\Job;
+use CoreExtensions\JobQueueBundle\Exception\UnsupportedJobTypeException;
 
 /**
  * @app
  */
-class ExampleJobCommandFactory implements \CoreExtensions\JobQueue\JobCommandFactoryInterface
+class ExampleJobCommandFactory implements \CoreExtensions\JobQueueBundle\JobCommandFactoryInterface
 {
     /**
      * (типизацию придется убрать)
      */
-    public function createFromJob(Job $job): \CoreExtensions\JobQueue\JobCommandInterface
+    public function createFromJob(Job $job): \CoreExtensions\JobQueueBundle\JobCommandInterface
     {
         /** @noinspection DegradedSwitchInspection */
         switch ($job->getJobType()) {

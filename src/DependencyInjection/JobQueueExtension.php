@@ -1,0 +1,38 @@
+<?php
+
+declare(strict_types=1);
+
+namespace CoreExtensions\JobQueueBundle\DependencyInjection;
+
+use Symfony\Component\Config\FileLocator;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Extension\Extension;
+use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;
+use CoreExtensions\JobQueueBundle\Entity\Job;
+
+class JobQueueExtension extends Extension
+{
+    /**
+     * @throws \Exception
+     */
+    public function load(array $configs, ContainerBuilder $container): void
+    {
+        $loader = new XmlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
+        $loader->load('services.xml');
+
+        $configuration = new Configuration();
+        $config = $this->processConfiguration($configuration, $configs);
+
+        $container->setParameter('core_extensions_job_queue_bundle.doctrine_mappings', [
+            Job::class => [
+                'type' => 'xml',
+                'dir' => __DIR__.'/../Resources/config/doctrine',
+                'prefix' => 'CoreExtensions\JobQueueBundle\Entity',
+                'alias' => 'Job',
+            ],
+        ]);
+
+        $definition = $container->getDefinition('core-extensions.job_queue.job_repository');
+        $definition->replaceArgument(0, $config['twitter']['client_id']); // ManagerRegistry
+    }
+}

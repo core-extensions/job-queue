@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue\Repository;
+namespace CoreExtensions\JobQueueBundle\Repository;
 
-use CoreExtensions\JobQueue\Entity\Job;
+use CoreExtensions\JobQueueBundle\Entity\Job;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

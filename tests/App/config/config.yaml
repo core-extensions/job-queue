@@ -1,5 +1,9 @@
-framework:
-  test: true
-  secret: test
-  router:
-    utf8: true
+doctrine:
+  orm:
+    mappings:
+      CoreExtensionsJobQueueBundle:
+        is_bundle: true
+        type: xml
+        dir: '%kernel.project_dir%/src/CoreExtensions/JobQueueBundle/Resources/config/doctrine'
+        prefix: 'CoreExtensions\JobQueueBundle\Entity'
+        alias: Job

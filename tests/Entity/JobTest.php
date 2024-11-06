@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue\Tests\Entity;
+namespace CoreExtensions\JobQueueBundle\Tests\Entity;
 
-use CoreExtensions\JobQueue\Entity\Job;
-use CoreExtensions\JobQueue\Exception\JobBusinessLogicException;
-use CoreExtensions\JobQueue\Exception\JobSealedInteractionException;
-use CoreExtensions\JobQueue\FailInfo;
-use CoreExtensions\JobQueue\Helpers;
-use CoreExtensions\JobQueue\JobConfiguration;
-use CoreExtensions\JobQueue\Tests\TestingJobCommand;
-use CoreExtensions\JobQueue\WorkerInfo;
+use CoreExtensions\JobQueueBundle\Entity\Job;
+use CoreExtensions\JobQueueBundle\Exception\JobBusinessLogicException;
+use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
+use CoreExtensions\JobQueueBundle\FailInfo;
+use CoreExtensions\JobQueueBundle\Helpers;
+use CoreExtensions\JobQueueBundle\JobConfiguration;
+use CoreExtensions\JobQueueBundle\Tests\TestingJobCommand;
+use CoreExtensions\JobQueueBundle\WorkerInfo;
 use PHPUnit\Framework\TestCase;
 
 // TODO: throws_exceptions tests

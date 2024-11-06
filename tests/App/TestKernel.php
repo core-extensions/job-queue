@@ -2,22 +2,25 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue\Tests\App;
+namespace CoreExtensions\JobQueueBundle\Tests\App;
 
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\HttpKernel\Kernel;
 
-// для интеграционных
 class TestKernel extends Kernel
 {
     public function registerBundles(): array
     {
         return [
             new \Symfony\Bundle\FrameworkBundle\FrameworkBundle(),
+            new \CoreExtensions\JobQueueBundle\JobQueueBundle(),
         ];
     }
 
-    public function registerContainerConfiguration(LoaderInterface $loader)
+    /**
+     * @throws \Exception
+     */
+    public function registerContainerConfiguration(LoaderInterface $loader): void
     {
         $loader->load(__DIR__.'/config/config.yaml');
     }

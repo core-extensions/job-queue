@@ -11,7 +11,7 @@ use Webmozart\Assert\Assert;
  *
  * @app
  */
-final class ExampleReverseGeocodeCommand extends \CoreExtensions\JobQueue\AbstractJobCommand
+final class ExampleReverseGeocodeCommand extends \CoreExtensions\JobQueueBundle\AbstractJobCommand
 {
     /**
      * (числа могут случайно использовать повторно)

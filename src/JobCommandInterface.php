@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue;
+namespace CoreExtensions\JobQueueBundle;
 
-use CoreExtensions\JobQueue\Entity\Job;
+use CoreExtensions\JobQueueBundle\Entity\Job;
 
 /**
  * Основное назначение: хранить всю информацию которая понадобится в handler.

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue;
+namespace CoreExtensions\JobQueueBundle;
 
-use CoreExtensions\JobQueue\Exception\JobTimeoutExceededException;
+use CoreExtensions\JobQueueBundle\Exception\JobTimeoutExceededException;
 use Webmozart\Assert\Assert;
 
 /**

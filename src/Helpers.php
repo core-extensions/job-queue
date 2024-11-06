@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue;
+namespace CoreExtensions\JobQueueBundle;
 
 final class Helpers
 {

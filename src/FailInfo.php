@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueue;
+namespace CoreExtensions\JobQueueBundle;
 
 use Webmozart\Assert\Assert;
 
