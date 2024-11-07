@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueueBundle;
+namespace CoreExtensions\JobQueueBundle\Entity;
 
+use CoreExtensions\JobQueueBundle\Helpers;
 use Webmozart\Assert\Assert;
 
 final class FailInfo

@@ -7,11 +7,11 @@ namespace CoreExtensions\JobQueueBundle\Tests\Entity;
 use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Exception\JobBusinessLogicException;
 use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
-use CoreExtensions\JobQueueBundle\FailInfo;
+use CoreExtensions\JobQueueBundle\Entity\FailInfo;
 use CoreExtensions\JobQueueBundle\Helpers;
 use CoreExtensions\JobQueueBundle\JobConfiguration;
 use CoreExtensions\JobQueueBundle\Tests\TestingJobCommand;
-use CoreExtensions\JobQueueBundle\WorkerInfo;
+use CoreExtensions\JobQueueBundle\Entity\WorkerInfo;
 use PHPUnit\Framework\TestCase;
 
 // TODO: throws_exceptions tests
