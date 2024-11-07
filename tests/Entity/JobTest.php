@@ -87,7 +87,6 @@ final class JobTest extends TestCase
         $this->assertEquals('random_string_id', $job->getDispatchedMessageId());
     }
 
-
     /**
      * @test
      */
@@ -122,10 +121,10 @@ final class JobTest extends TestCase
         );
 
         $revokedAt = new \DateTimeImmutable();
-        $job->revoked($revokedAt, Job::REVOKED_FOR_RE_RUN);
+        $job->revoked($revokedAt, Job::REVOKED_DUE_DEPLOYMENT);
 
         $this->assertEquals($revokedAt, $job->getRevokedAt());
-        $this->assertEquals(Job::REVOKED_FOR_RE_RUN, $job->getRevokedFor());
+        $this->assertEquals(Job::REVOKED_DUE_DEPLOYMENT, $job->getRevokedFor());
         // not confirmed yet
         $this->assertNull($job->getRevokeConfirmedAt());
     }
@@ -141,7 +140,7 @@ final class JobTest extends TestCase
             new \DateTimeImmutable()
         );
 
-        $job->revoked(new \DateTimeImmutable(), Job::REVOKED_FOR_RE_RUN);
+        $job->revoked(new \DateTimeImmutable(), Job::REVOKED_DUE_DEPLOYMENT);
 
         $revokeConfirmedAt = new \DateTimeImmutable();
         $job->revokeConfirmed($revokeConfirmedAt);
@@ -150,7 +149,7 @@ final class JobTest extends TestCase
 
         // still revoked
         $this->assertNotNull($job->getRevokedAt());
-        $this->assertEquals(Job::REVOKED_FOR_RE_RUN, $job->getRevokedFor());
+        $this->assertEquals(Job::REVOKED_DUE_DEPLOYMENT, $job->getRevokedFor());
 
         // sealed now
         $this->assertNotNull($job->getSealedAt());
@@ -327,7 +326,7 @@ final class JobTest extends TestCase
 
         $this->expectException(JobSealedInteractionException::class);
         $this->expectExceptionMessageMatches('|revoked|is');
-        $job->revoked(new \DateTimeImmutable(), Job::REVOKED_FOR_RE_RUN);
+        $job->revoked(new \DateTimeImmutable(), Job::REVOKED_DUE_DEPLOYMENT);
     }
 
     /**
@@ -337,7 +336,7 @@ final class JobTest extends TestCase
     {
         $job = $this->job;
         // workflow stuff
-        $job->revoked(new \DateTimeImmutable(), Job::REVOKED_FOR_RE_RUN);
+        $job->revoked(new \DateTimeImmutable(), Job::REVOKED_DUE_DEPLOYMENT);
 
         $job->sealed(new \DateTimeImmutable(), Job::SEALED_DUE_FAILED_TIMEOUT);
 

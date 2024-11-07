@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CoreExtensions\JobQueueBundle\Tests;
 
 use CoreExtensions\JobQueueBundle\Entity\Job;
+use CoreExtensions\JobQueueBundle\Helpers;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
 
 final class TestingJobCommand implements JobCommandInterface
@@ -49,7 +50,7 @@ final class TestingJobCommand implements JobCommandInterface
 
     public static function fromArray(array $arr): self
     {
-        return self::fromValues($arr['int'], $arr['string'], $arr['date'], $arr['array']);
+        return self::fromValues($arr['int'], $arr['string'], Helpers::unserializeDateTime($arr['date']), $arr['array']);
     }
 
     public function toArray(): array
@@ -58,7 +59,7 @@ final class TestingJobCommand implements JobCommandInterface
             'jobId' => $this->getJobId(),
             'int' => $this->getInt(),
             'string' => $this->getString(),
-            'date' => $this->getDate(), // serialize?
+            'date' => Helpers::serializeDateTime($this->getDate()),
             'array' => $this->getArray(),
         ];
     }

@@ -74,6 +74,7 @@ final class JobManagerTest extends TestCase
 
     /**
      * @test
+     * @throws \Throwable
      */
     public function it_can_enqueue_chain_of_jobs(): void
     {

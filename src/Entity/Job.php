@@ -13,15 +13,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Webmozart\Assert\Assert;
 
 /**
- * @lib
- * doctrine entity - точно нужно чтобы было doctrine entity?
- * плюсы:
- *  - простая запись
- *  - автоматическая сериализация
- * минусы:
- *  - нельзя гонять в виде message, поэтому появляется лишнее (JobStamp)
- *  - hardcoded-таблицы (пока)
- *
+ * // TODO: doctrine entity - точно нужно чтобы было doctrine entity?
  * // TODO: retry + result of it
  * // TODO: optimistic locking чтобы с UI не могли работать со старыми данными
  * // TODO: sealing ?
@@ -35,8 +27,8 @@ class Job
     /**
      * Признак что остановили временно для re-run после deploy (обсуждаемо).
      */
-    // Признак что остановили временно для re-run после deploy (обсуждаемо).
-    public const REVOKED_FOR_RE_RUN = 10;
+    // остановили временно для re-run после deploy (обсуждаемо).
+    public const REVOKED_DUE_DEPLOYMENT = 10;
 
     /**
      * Причины для sealed.
@@ -212,7 +204,7 @@ class Job
 
     /**
      * Инициализирует Job и делает JobMessage bound к нему.
-     * TODO: могут дублирование JobCommand, если jobId не будет меняться @see JobManager::enqueueChain(),
+     * TODO: может быть дублирование JobCommand, если jobId не будет меняться @see JobManager::enqueueChain(),
      * TODO: возможно лучше сделать его генерацию внутренней, через factory (для тестов)
      */
     public static function initNew(string $jobId, JobCommandInterface $jobMessage, \DateTimeImmutable $createdAt): self
@@ -458,13 +450,6 @@ class Job
                 $this->getSealedDue()
             )
         );
-    }
-
-    private function resolveJobConfiguration(): ?JobConfiguration
-    {
-        // хранить в поле?
-        // TODO: default - значение либо оно же но в сохраненном виде
-        return null === $this->getJobConfiguration() ? null : JobConfiguration::fromArray($this->getJobConfiguration());
     }
 
     private function incAttemptsCount(): void

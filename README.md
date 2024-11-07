@@ -39,7 +39,18 @@
 
 ### Конфигурирование
 
+https://davegebler.com/post/php/how-to-create-a-symfony-5-bundle
+
 ```yaml
+# config/packages/messenger.yaml
+framework:
+  messenger:
+    buses:
+      messenger.bus.default:
+        middleware: 
+          - @core-extensions.job_queue.job_middleware
+
+## ????
 job_queue:
     jobs_table: "orm_jobs"
 ```

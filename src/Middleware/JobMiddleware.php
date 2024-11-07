@@ -8,6 +8,7 @@ use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Exception\JobCommandOrphanException;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
 use CoreExtensions\JobQueueBundle\Repository\JobRepository;
+use CoreExtensions\JobQueueBundle\Service\WorkerInfoResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
@@ -19,13 +20,18 @@ use Symfony\Component\Messenger\Stamp\ReceivedStamp;
  */
 final class JobMiddleware implements MiddlewareInterface
 {
-    private JobRepository $jobRepository;
     private EntityManagerInterface $entityManager;
+    private JobRepository $jobRepository;
+    private WorkerInfoResolver $workerInfoResolver;
 
-    public function __construct(JobRepository $jobRepository, EntityManagerInterface $entityManager)
-    {
-        $this->jobRepository = $jobRepository;
+    public function __construct(
+        EntityManagerInterface $entityManager,
+        JobRepository $jobRepository,
+        WorkerInfoResolver $workerInfoResolver
+    ) {
         $this->entityManager = $entityManager;
+        $this->jobRepository = $jobRepository;
+        $this->workerInfoResolver = $workerInfoResolver;
     }
 
     public function handle(Envelope $envelope, StackInterface $stack): Envelope
@@ -53,6 +59,10 @@ final class JobMiddleware implements MiddlewareInterface
 
         if ($envelope->last(ReceivedStamp::class)) {
             $this->postHandling($job);
+
+            // persist always
+            $this->entityManager->persist($job);
+            $this->entityManager->flush();
         }
 
         return $envelope;
@@ -60,12 +70,12 @@ final class JobMiddleware implements MiddlewareInterface
 
     private function preHandling(Job $job): void
     {
-        $job->accepted($job);
+        $workerInfo = $this->workerInfoResolver->resolveWorkerInfo();
+        $job->accepted(new \DateTimeImmutable(), $workerInfo);
     }
 
     private function postHandling(Job $job): void
     {
-        $this->entityManager->persist($job);
-        $this->entityManager->flush();
+        // TODO:
     }
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle\Service;
 
-use CoreExtensions\JobQueueBundle\WorkerInfo;
+use CoreExtensions\JobQueueBundle\Entity\WorkerInfo;
 
 class WorkerInfoResolver
 {

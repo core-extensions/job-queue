@@ -39,7 +39,6 @@ final class JobConfiguration
         return self::fromValues(1, self::DEFAULT_TIMEOUT);
     }
 
-    // >>> fluent setters
     public function withMaxRetries(int $maxRetries): self
     {
         $this->maxRetries = $maxRetries;
@@ -53,8 +52,6 @@ final class JobConfiguration
 
         return $this;
     }
-
-    // <<< fluent setters
 
     public static function fromArray(array $arr): self
     {
