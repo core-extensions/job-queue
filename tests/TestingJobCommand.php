@@ -56,7 +56,6 @@ final class TestingJobCommand implements JobCommandInterface
     public function toArray(): array
     {
         return [
-            'jobId' => $this->getJobId(),
             'int' => $this->getInt(),
             'string' => $this->getString(),
             'date' => Helpers::serializeDateTime($this->getDate()),

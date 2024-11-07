@@ -12,7 +12,7 @@ use Doctrine\Persistence\ManagerRegistry;
 /**
  * @lib
  */
-final class JobRepository extends ServiceEntityRepository
+class JobRepository extends ServiceEntityRepository
 {
     public const SIMPLE_CRITERIA_JOB_ID_EQ = 'jobId';
     public const SIMPLE_CRITERIA_JOB_TYPE_EQ = 'jobType';

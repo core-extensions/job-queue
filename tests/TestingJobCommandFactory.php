@@ -13,12 +13,24 @@ final class TestingJobCommandFactory implements JobCommandFactoryInterface
 {
     public function createFromJob(Job $job): JobCommandInterface
     {
+        /**
+         * @var JobCommandInterface $command
+         */
+        $command = null;
+
         /** @noinspection DegradedSwitchInspection */
         switch ($job->getJobType()) {
             case TestingJobCommand::JOB_TYPE:
-                return TestingJobCommand::fromArray($job->getJobCommand());
-            default:
-                throw new UnsupportedJobTypeException($job->getJobType());
+                $command = TestingJobCommand::fromArray($job->getJobCommand());
+                break;
         }
+
+        if (null === $command) {
+            throw new UnsupportedJobTypeException($job->getJobType());
+        }
+
+        $command->bindJob($job);
+
+        return $command;
     }
 }

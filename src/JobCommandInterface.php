@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CoreExtensions\JobQueueBundle;
 
 use CoreExtensions\JobQueueBundle\Entity\Job;
+use CoreExtensions\JobQueueBundle\Tests\TestingJobCommandFactory;
 
 /**
  * Основное назначение: хранить всю информацию которая понадобится в handler.
@@ -15,10 +16,14 @@ interface JobCommandInterface
     public function getJobType(): string;
 
     /**
-     * (присутствует здесь потому что удобно доставать в handler)
+     * (присутствует здесь потому что требуется в handler и middleware)
      */
     public function getJobId(): ?string;
 
+    /**
+     * (вызывается в \CoreExtensions\JobQueueBundle\Entity\Job::initNew)
+     * (вызывается в \CoreExtensions\JobQueueBundle\JobCommandFactoryInterface::createFromJob)
+     */
     public function bindJob(Job $job): void;
 
     public function toArray(): array;

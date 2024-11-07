@@ -8,6 +8,7 @@ use CoreExtensions\JobQueueBundle\Entity\Job;
 
 final class JobSealedInteractionException extends \RuntimeException implements JobNonRetryableExceptionInterface
 {
+    private string $jobId;
     private string $action;
 
     public static function fromJob(Job $job, string $action): self
@@ -20,9 +21,15 @@ final class JobSealedInteractionException extends \RuntimeException implements J
                 $job->getSealedDue()
             )
         );
+        $res->jobId = $job->getJobId();
         $res->action = $action;
 
         return $res;
+    }
+
+    public function getJobId(): string
+    {
+        return $this->jobId;
     }
 
     public function getAction(): string
