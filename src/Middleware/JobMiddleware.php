@@ -6,6 +6,7 @@ namespace CoreExtensions\JobQueueBundle\Middleware;
 
 use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Exception\JobCommandOrphanException;
+use CoreExtensions\JobQueueBundle\Exception\JobUnboundException;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
 use CoreExtensions\JobQueueBundle\Repository\JobRepository;
 use CoreExtensions\JobQueueBundle\Service\WorkerInfoResolver;
@@ -18,7 +19,7 @@ use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 /**
  * Выполняет pre и post actions.
  */
-final class JobMiddleware implements MiddlewareInterface
+class JobMiddleware implements MiddlewareInterface
 {
     private EntityManagerInterface $entityManager;
     private JobRepository $jobRepository;
@@ -40,10 +41,17 @@ final class JobMiddleware implements MiddlewareInterface
          * @var JobCommandInterface $jobCommand
          */
         $jobCommand = $envelope->getMessage();
+        $jobId = $jobCommand->getJobId();
+
+        // there are no way to receive a such job command
+        if (null === $jobId) {
+            throw JobUnboundException::fromJobCommand($jobCommand);
+        }
+
         /**
          * @var Job $job
          */
-        $job = $this->jobRepository->find($jobCommand->getJobId());
+        $job = $this->jobRepository->find($jobId);
 
         // there are no other way to detect orphans
         if (null === $job) {

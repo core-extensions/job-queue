@@ -4,28 +4,31 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle\Exception;
 
-use CoreExtensions\JobQueueBundle\Entity\Job;
+use CoreExtensions\JobQueueBundle\JobCommandInterface;
 
+/**
+ * Когда выясняется что к JobCommand не привязан Job.
+ */
 final class JobUnboundException extends \RuntimeException implements JobNonRetryableExceptionInterface
 {
-    private string $jobId;
+    private string $jobType;
 
-    public static function fromJob(Job $job): self
+    public static function fromJobCommand(JobCommandInterface $jobCommand): self
     {
         $res = new self(
             sprintf(
-                'Using unbound jobCommand of job "%s"',
-                $job->getJobId()
+                'Using unbound job command with job type "%s"',
+                $jobCommand->getJobType()
             )
         );
 
-        $res->jobId = $job->getJobId();
+        $res->jobType = $jobCommand->getJobType();
 
         return $res;
     }
 
-    public function getJobId(): string
+    public function getJobType(): string
     {
-        return $this->jobId;
+        return $this->jobType;
     }
 }

@@ -21,15 +21,15 @@ final class JobCommandOrphanException extends \RuntimeException implements JobNo
     {
         $res = new self(
             sprintf(
-                'Job "%s" not found (type "%s"))',
+                'Using orphan job command of job "%s"',
                 $jobCommand->getJobId(),
-                $jobCommand->getJobType()
             )
         );
         $res->jobId = $jobCommand->getJobId();
 
         return $res;
     }
+
 
     public function getJobId(): string
     {

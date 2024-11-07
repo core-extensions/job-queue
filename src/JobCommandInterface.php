@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace CoreExtensions\JobQueueBundle;
 
 use CoreExtensions\JobQueueBundle\Entity\Job;
-use CoreExtensions\JobQueueBundle\Tests\TestingJobCommandFactory;
 
 /**
  * Основное назначение: хранить всю информацию которая понадобится в handler.
