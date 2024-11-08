@@ -89,10 +89,12 @@ final class FailInfo
             0,
             sprintf('Invalid param "%s" value "%s" in "%s"', 'code', $errorCode, __METHOD__)
         );
+        /* throwable can have empty message
         Assert::stringNotEmpty(
             $errorMessage,
             sprintf('Invalid param "%s" value "%s" in "%s"', 'message', $errorMessage, __METHOD__)
         );
+        */
         Assert::positiveInteger(
             $errorLine,
             sprintf('Invalid param "%s" value "%s" in "%s"', 'line', $errorLine, __METHOD__)

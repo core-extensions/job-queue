@@ -189,7 +189,6 @@ class Job
      *  1) revoke => revokeConfirmed => sealed
      *  2) failed => max retries reached => sealed
      *  3) resolved => sealed
-     *  4) timeout reached => sealed
      *
      * @ORM\Column(type="datetimetz_immutable", nullable=true)
      */
@@ -419,8 +418,10 @@ class Job
         $this->setJobConfiguration($jobConfiguration->toArray());
     }
 
-    // TODO: должен быть приватным так как позволяет ломать workflow
-    public function sealed(\DateTimeImmutable $sealedAt, int $due): void
+    /**
+     * (специально private)
+     */
+    private function sealed(\DateTimeImmutable $sealedAt, int $due): void
     {
         $this->setSealedAt($sealedAt);
         $this->setSealedDue($due);
