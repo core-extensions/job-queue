@@ -419,6 +419,7 @@ class Job
         $this->setJobConfiguration($jobConfiguration->toArray());
     }
 
+    // TODO: должен быть приватным так как позволяет ломать workflow
     public function sealed(\DateTimeImmutable $sealedAt, int $due): void
     {
         $this->setSealedAt($sealedAt);

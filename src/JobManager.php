@@ -94,6 +94,7 @@ final class JobManager
                 $job->bindToChain($chainId, $i++);
             }
 
+            // TODO: only first
             // 2) dispatching all
             foreach ($jobs as $job) {
                 $message = $this->jobCommandFactory->createFromJob($job);

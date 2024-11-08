@@ -7,10 +7,10 @@ namespace CoreExtensions\JobQueueBundle\Tests\Middleware;
 use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Entity\WorkerInfo;
 use CoreExtensions\JobQueueBundle\Exception\JobCommandOrphanException;
-use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
 use CoreExtensions\JobQueueBundle\Exception\JobUnboundException;
 use CoreExtensions\JobQueueBundle\Middleware\JobMiddleware;
 use CoreExtensions\JobQueueBundle\Repository\JobRepository;
+use CoreExtensions\JobQueueBundle\Service\MessageIdResolver;
 use CoreExtensions\JobQueueBundle\Service\WorkerInfoResolver;
 use CoreExtensions\JobQueueBundle\Tests\TestingJobCommand;
 use CoreExtensions\JobQueueBundle\Tests\TestingJobCommandFactory;
@@ -32,6 +32,7 @@ final class JobMiddlewareTest extends TestCase
     private TestingJobCommandFactory $jobCommandFactory;
     private JobMiddleware $jobMiddleware;
     private StackInterface $stack;
+    private MessageIdResolver $messageIdResolver;
 
     protected function setUp(): void
     {
@@ -42,6 +43,7 @@ final class JobMiddlewareTest extends TestCase
         $this->jobRepository = $this->createMock(JobRepository::class);
         $this->workerInfoResolver = $this->createMock(WorkerInfoResolver::class);
         $this->stack = $this->createMock(StackInterface::class);
+        $this->messageIdResolver = $this->createMock(MessageIdResolver::class);
         $this->job = Job::initNew(
             '99a01a56-3f9d-4bf1-b065-484455cc2847',
             TestingJobCommand::fromValues(
@@ -53,7 +55,14 @@ final class JobMiddlewareTest extends TestCase
             new \DateTimeImmutable()
         );
         $this->jobCommandFactory = new TestingJobCommandFactory();
-        $this->jobMiddleware = new JobMiddleware($this->entityManager, $this->jobRepository, $this->workerInfoResolver);
+        $this->jobMiddleware = new JobMiddleware(
+            $this->entityManager,
+            $this->messageBus,
+            $this->jobRepository,
+            $this->workerInfoResolver,
+            $this->jobCommandFactory,
+            $this->messageIdResolver
+        );
     }
 
     /**
@@ -87,9 +96,8 @@ final class JobMiddlewareTest extends TestCase
 
     /**
      * @test
-     * @throws \ReflectionException
      */
-    public function it_calls_pre_and_post_actions(): void
+    public function it_accepts_job(): void
     {
         $job = $this->job;
         $jobMiddleware = $this->jobMiddleware;
@@ -103,43 +111,32 @@ final class JobMiddlewareTest extends TestCase
         // do workflow stuff
         $job->dispatched(new \DateTimeImmutable(), 'long_string_id');
 
-        $this->assertMethodCalled($jobMiddleware, 'preHandling', $job, $envelope, $this->stack);
+        $this->assertNull($job->getAcceptedAt());
 
         $jobMiddleware->handle(
             $envelope,
-            $this->stack
-        // new class implements StackInterface {
-        //     public function next(): MiddlewareInterface
-        //     {
-        //         return new class implements MiddlewareInterface {
-        //             public function handle(Envelope $envelope, StackInterface $stack): Envelope
-        //             {
-        //                 return $envelope;
-        //             }
-        //         };
-        //     }
-        // }
+            // due envelope is final
+            new class implements StackInterface {
+                public function next(): MiddlewareInterface
+                {
+                    return new class implements MiddlewareInterface {
+                        public function handle(Envelope $envelope, StackInterface $stack): Envelope
+                        {
+                            return $envelope;
+                        }
+                    };
+                }
+            }
         );
+
+        $this->assertNotNull($job->getAcceptedAt());
     }
 
-    /**
-     * @throws \ReflectionException
-     */
-    private function assertMethodCalled($object, string $methodName, ...$args): void
+    public function it_dispatches_next_job_of_chain(): void
     {
-        $reflection = new \ReflectionClass($object);
-        $method = $reflection->getMethod($methodName);
-        $method->setAccessible(true);
+    }
 
-        $mock = $this->getMockBuilder(get_class($object))
-            ->onlyMethods([$methodName])
-            ->getMock();
-
-        // Настройка ожидания вызова метода
-        $mock->expects($this->once())
-            ->method($methodName)
-            ->with(...$args);
-
-        $mock->handle($args[0], $args[1]);
+    public function it_dont_dispatch_any_job_of_chain_if_end(): void
+    {
     }
 }
