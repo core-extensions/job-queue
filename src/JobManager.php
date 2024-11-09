@@ -8,6 +8,7 @@ use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Service\MessageIdResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Webmozart\Assert\Assert;
 
 /**
  * Управляет очередью.
@@ -86,22 +87,36 @@ final class JobManager
      */
     public function enqueueChain(string $chainId, array $jobs): void
     {
+        Assert::uuid($chainId, sprintf('Invalid param "%s" value "%s" in "%s"', 'chainId', $chainId, __METHOD__));
+
+        Assert::allIsInstanceOf($jobs, Job::class, sprintf('Invalid param "%s"" in "%s"', 'jobs', __METHOD__));
+        Assert::notEmpty($jobs, sprintf('Empty value of param "%s"" in "%s"', 'jobs', __METHOD__));
+        Assert::uniqueValues(array_map(static function (Job $i) {
+            return $i->getJobId();
+        }, $jobs), sprintf('Non unique job list in "%s"', __METHOD__));
+
+        $jobs = array_values($jobs);
+
         $this->entityManager->beginTransaction();
         try {
-            // 1) prepare all to be chained
+            // 1) prepare all to be chained in proper order
             $i = 0; // 0 - у head
             foreach ($jobs as $job) {
                 $job->bindToChain($chainId, $i++);
             }
 
-            // TODO: only first
-            // 2) dispatching all
-            foreach ($jobs as $job) {
-                $message = $this->jobCommandFactory->createFromJob($job);
-                $envelope = $this->messageBus->dispatch($message);
+            // 2) dispatch only head
+            $headJob = $jobs[0];
+            $message = $this->jobCommandFactory->createFromJob($headJob);
 
-                // 3) mark as dispatched and persist (because new entity)
-                $job->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($envelope));
+            $envelope = $this->messageBus->dispatch($message);
+
+            // 3) mark head as dispatched
+            $headJob->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($envelope));
+
+            // 4) persist all (because new entity)
+            foreach ($jobs as $job) {
+                $this->entityManager->persist($job);
             }
 
             $this->entityManager->flush();

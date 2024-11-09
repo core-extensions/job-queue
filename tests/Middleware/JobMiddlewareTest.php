@@ -168,6 +168,7 @@ final class JobMiddlewareTest extends TestCase
 
     /**
      * TODO: подумать нужно ли это
+     *
      * @test
      */
     public function it_persist_and_flush_job(): void
