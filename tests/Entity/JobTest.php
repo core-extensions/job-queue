@@ -51,7 +51,7 @@ final class JobTest extends TestCase
         $this->assertNull($job->getWorkerInfo());
         $this->assertNull($job->getResolvedAt());
         $this->assertNull($job->getRevokedFor());
-        $this->assertNull($job->getRevokeConfirmedAt());
+        $this->assertNull($job->getRevokeAcceptedAt());
         $this->assertNull($job->getChainId());
         $this->assertNull($job->getChainPosition());
         $this->assertNull($job->getResult());
@@ -127,7 +127,7 @@ final class JobTest extends TestCase
         $this->assertEquals($revokedAt, $job->getRevokedAt());
         $this->assertEquals(Job::REVOKED_DUE_DEPLOYMENT, $job->getRevokedFor());
         // not confirmed yet
-        $this->assertNull($job->getRevokeConfirmedAt());
+        $this->assertNull($job->getRevokeAcceptedAt());
     }
 
     /**
@@ -146,7 +146,7 @@ final class JobTest extends TestCase
         $revokeConfirmedAt = new \DateTimeImmutable();
         $job->revokeConfirmed($revokeConfirmedAt);
 
-        $this->assertEquals($revokeConfirmedAt, $job->getRevokeConfirmedAt());
+        $this->assertEquals($revokeConfirmedAt, $job->getRevokeAcceptedAt());
 
         // still revoked
         $this->assertNotNull($job->getRevokedAt());

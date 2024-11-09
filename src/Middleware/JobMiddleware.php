@@ -70,51 +70,53 @@ class JobMiddleware implements MiddlewareInterface
             throw JobCommandOrphanException::fromJobCommand($jobCommand);
         }
 
+        // pre handling
         if (!$envelope->last(ReceivedStamp::class)) {
-            $this->preHandling($job);
+            $this->acceptJob($job);
+
+            $this->entityManager->persist($job);
+            // TODO: подумать нужно ли это
+            $this->entityManager->flush();
         }
 
         // next
         $envelope = $stack->next()->handle($envelope, $stack);
 
+        // post handling
         if ($envelope->last(ReceivedStamp::class)) {
-            $this->postHandling($job);
+            if (null !== $job->getResolvedAt() && null !== $job->getChainId()) {
+                $this->handleChain($job);
+            }
+
+            $this->entityManager->persist($job);
+            // TODO: подумать нужно ли это
+            $this->entityManager->flush();
         }
 
         return $envelope;
     }
 
-    private function preHandling(Job $job): void
+    private function acceptJob(Job $job): void
     {
         $workerInfo = $this->workerInfoResolver->resolveWorkerInfo();
         $job->accepted(new \DateTimeImmutable(), $workerInfo);
-
-        // TODO: need?
-        $this->entityManager->persist($job);
-        $this->entityManager->flush();
     }
 
-    private function postHandling(Job $job): void
+    // TODO: using JobManager::enqueueJob? but transactional stuffs?
+    // handling chain if need
+    private function handleChain(Job $currJob): void
     {
-        // handling chain if need
-        if (null !== $job->getResolvedAt() && null !== $job->getChainId()) {
-            // TODO: using JobManager::enqueueJob? but transactional stuffs?
-            $nextJob = $this->jobRepository->findNextChained($job->getChainId(), $job->getChainPosition());
-            if (null !== $nextJob) {
-                $nextMessage = $this->jobCommandFactory->createFromJob($nextJob);
-                $nextEnvelope = $this->messageBus->dispatch($nextMessage);
+        $nextJob = $this->jobRepository->findNextChained($currJob->getChainId(), $currJob->getChainPosition());
+        if (null !== $nextJob) {
+            $nextMessage = $this->jobCommandFactory->createFromJob($nextJob);
+            $nextEnvelope = $this->messageBus->dispatch($nextMessage);
 
-                // 3) mark as dispatched and persist (because new entity)
-                $nextJob->dispatched(
-                    new \DateTimeImmutable(),
-                    $this->messageIdResolver->resolveMessageId($nextEnvelope)
-                );
-                $this->entityManager->persist($nextJob);
-            }
+            // 3) mark as dispatched and persist (because new entity)
+            $nextJob->dispatched(
+                new \DateTimeImmutable(),
+                $this->messageIdResolver->resolveMessageId($nextEnvelope)
+            );
+            $this->entityManager->persist($nextJob);
         }
-
-        // TODO: need?
-        $this->entityManager->persist($job);
-        $this->entityManager->flush();
     }
 }

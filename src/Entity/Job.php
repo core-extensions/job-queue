@@ -113,7 +113,7 @@ class Job
      *
      * @ORM\Column(type="datetimetz_immutable", nullable=true)
      */
-    private ?\DateTimeImmutable $revokeConfirmedAt = null;
+    private ?\DateTimeImmutable $revokeAcceptedAt = null;
 
     /**
      * Признак chained очереди.
@@ -322,7 +322,7 @@ class Job
         );
         $this->assertJobNotSealed('revokeConfirmed');
 
-        $this->setRevokeConfirmedAt($revokeConfirmedAt);
+        $this->setRevokeAcceptedAt($revokeConfirmedAt);
         $this->sealed($revokeConfirmedAt, self::SEALED_DUE_REVOKED_AND_CONFIRMED);
     }
 
@@ -542,14 +542,14 @@ class Job
         $this->revokedFor = $revokedFor;
     }
 
-    public function getRevokeConfirmedAt(): ?\DateTimeImmutable
+    public function getRevokeAcceptedAt(): ?\DateTimeImmutable
     {
-        return $this->revokeConfirmedAt;
+        return $this->revokeAcceptedAt;
     }
 
-    public function setRevokeConfirmedAt(?\DateTimeImmutable $revokeConfirmedAt): void
+    public function setRevokeAcceptedAt(?\DateTimeImmutable $revokeAcceptedAt): void
     {
-        $this->revokeConfirmedAt = $revokeConfirmedAt;
+        $this->revokeAcceptedAt = $revokeAcceptedAt;
     }
 
     public function getWorkerInfo(): ?array
