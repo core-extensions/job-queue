@@ -1,0 +1,10 @@
+parameters:
+    level: max
+    paths:
+        - src
+        - tests
+    excludes_analyse:
+        - vendor/*
+    parallel:
+        # disabled parallel due "Could not open input file: logging"
+        maximumNumberOfProcesses: 1
