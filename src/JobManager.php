@@ -34,17 +34,17 @@ final class JobManager
 
     /**
      * (специально сначала dispatching, затем сохранение в БД + откат в случае неудачи + throw)
-     * TODO: в handlers придется обрабатывать случай когда нет Job (OrphanJobCommandException)
      *
      * @throws \Throwable
+     *
+     * @see OrphanJobCommandException
      */
     public function enqueueJob(Job $job): void
     {
         $this->entityManager->beginTransaction();
         try {
             // 1) dispatching
-            $message = $this->jobCommandFactory->createFromJob($job);
-            $envelope = $this->messageBus->dispatch($message);
+            $envelope = $this->messageBus->dispatch($this->jobCommandFactory->createFromJob($job));
 
             // 2) mark as dispatched and persist (because new entity)
             $job->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($envelope));
@@ -76,7 +76,6 @@ final class JobManager
      *      * какой-то отдельный процесс должен будет повторять публикацию для dispatchedAt == null jobs
      *
      * (специально сначала dispatching всех, затем сохранение всех в БД и откат все в случае неудачи + throw)
-     * TODO: в handlers придется обрабатывать случай когда нет Job (OrphanJobCommandException)
      * (транзакция на всю группу)
      *
      * @param Job[] $jobs
@@ -107,9 +106,7 @@ final class JobManager
 
             // 2) dispatch only head
             $headJob = $jobs[0];
-            $message = $this->jobCommandFactory->createFromJob($headJob);
-
-            $envelope = $this->messageBus->dispatch($message);
+            $envelope = $this->messageBus->dispatch($this->jobCommandFactory->createFromJob($headJob));
 
             // 3) mark head as dispatched
             $headJob->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($envelope));

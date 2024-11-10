@@ -53,26 +53,26 @@ final class JobManagerTest extends TestCase
      *
      * @throws \Throwable
      */
-    public function it_can_enqueue_job(): void
+    public function it_enqueues_one_job(): void
     {
-        // @see https://github.com/symfony/symfony/issues/33740
-        $this->messageBus->method('dispatch')->willReturn(
+        $jobManager = $this->jobManager;
+
+        $job = $this->job;
+        $jobCommand = $this->jobCommandFactory->createFromJob($job);
+
+        // we expect persist and flush
+        $this->entityManager->expects($this->once())->method('persist')->with($job);
+        $this->entityManager->expects($this->once())->method('flush');
+        $this->entityManager->expects($this->once())->method('commit');
+
+        // we expect dispatching to bus
+        $this->messageBus->expects($this->once())->method('dispatch')->with($jobCommand)->willReturn(
             new Envelope(new \stdClass(), [new TransportMessageIdStamp('long_string_id')])
         );
 
-        // $transportStampMock = Mockery::mock(StampInterface::class);
-        // $transportStampMock->shouldReceive('getId')->andReturn('long_string');
-        //
-        // $envelopeMock = Mockery::mock(Envelope::class);
-        // $envelopeMock->shouldReceive('last')
-        //     ->with(TransportMessageIdStamp::class)
-        //     ->andReturn($transportStampMock);
-
-        $job = $this->job;
-        $jobManager = $this->jobManager;
-
         $jobManager->enqueueJob($job);
 
+        // we expect job will be marked as dispatched
         $this->assertNotNull($job->getDispatchedAt());
         $this->assertEquals('long_string_id', $job->getDispatchedMessageId());
     }
@@ -82,13 +82,9 @@ final class JobManagerTest extends TestCase
      *
      * @throws \Throwable
      */
-    public function it_can_enqueue_chain_of_jobs(): void
+    public function it_enqueues_chain_of_jobs(): void
     {
-        $this->messageBus->method('dispatch')->willReturnOnConsecutiveCalls(
-            new Envelope(new \stdClass(), [new TransportMessageIdStamp('long_string_id_1')]),
-            new Envelope(new \stdClass(), [new TransportMessageIdStamp('long_string_id_2')]),
-            new Envelope(new \stdClass(), [new TransportMessageIdStamp('long_string_id_3')]),
-        );
+        $jobManager = $this->jobManager;
 
         $job1 = Job::initNew(
             '44f2d3b5-492e-41c0-909f-c7a45286a68b',
@@ -106,17 +102,26 @@ final class JobManagerTest extends TestCase
             new \DateTimeImmutable()
         );
 
-        $jobManager = $this->jobManager;
+        // we expect persist and flush all jobs
+        $this->entityManager->expects($this->exactly(3))->method('persist')->withConsecutive([$job1], [$job2], [$job3]);
+        $this->entityManager->expects($this->once())->method('flush');
+        $this->entityManager->expects($this->once())->method('commit');
+
+        // we expect dispatching to bus only head job
+        $jobCommand1 = $this->jobCommandFactory->createFromJob($job1);
+        $this->messageBus->expects($this->once())->method('dispatch')->with($jobCommand1)->willReturnOnConsecutiveCalls(
+            new Envelope(new \stdClass(), [new TransportMessageIdStamp('long_string_id_1')])
+        );
+
         $jobManager->enqueueChain('be3a7e26-aa34-454b-9c5d-121356e13910', [$job1, $job2, $job3]);
 
-        // only head should be dispatched
+        // we expect only head job will be marked as dispatched
         $this->assertNotNull($job1->getDispatchedAt());
-        $this->assertNull($job2->getDispatchedAt());
-        $this->assertNull($job3->getDispatchedAt());
-
         $this->assertEquals('long_string_id_1', $job1->getDispatchedMessageId());
+
+        $this->assertNull($job2->getDispatchedAt());
         $this->assertNull($job2->getDispatchedMessageId());
+        $this->assertNull($job3->getDispatchedAt());
         $this->assertNull($job3->getDispatchedMessageId());
-        // TODO: последовательное исполнение
     }
 }
