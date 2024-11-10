@@ -36,6 +36,6 @@
     "cs-check": "php-cs-fixer fix --dry-run --diff",
     "phpstan": "phpstan analyse src tests",
     "test": "phpunit",
-    "test-coverage": "phpunit --coverage-html coverage"
+    "test-coverage": "XDEBUG_MODE=coverage phpunit --coverage-text"
   }
 }
