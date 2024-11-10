@@ -25,7 +25,13 @@ interface JobCommandInterface
      */
     public function bindJob(Job $job): void;
 
+    /**
+     * @return array<mixed>
+     */
     public function toArray(): array;
 
+    /**
+     * @param array<mixed> $arr
+     */
     public static function fromArray(array $arr): self;
 }

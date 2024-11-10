@@ -14,11 +14,12 @@ final class TestingJobCommandFactory implements JobCommandFactoryInterface
     public function createFromJob(Job $job): JobCommandInterface
     {
         /**
-         * @var JobCommandInterface $command
+         * @var JobCommandInterface|null $command
          */
         $command = null;
 
         /** @noinspection DegradedSwitchInspection */
+        /** @noinspection PhpSwitchStatementWitSingleBranchInspection */
         switch ($job->getJobType()) {
             case TestingJobCommand::JOB_TYPE:
                 $command = TestingJobCommand::fromArray($job->getJobCommand());

@@ -1,10 +1,12 @@
 parameters:
-    level: max
+    level: 6
+    ignoreErrors:
+        # due toArray()
+        #- '#Method [a-zA-Z0-9\\_]+::fromArray() has parameter \$arr with no value type specified in iterable type array.#'
     paths:
         - src
-        - tests
-    excludes_analyse:
-        - vendor/*
+        #- tests
     parallel:
-        # disabled parallel due "Could not open input file: logging"
-        maximumNumberOfProcesses: 1
+        # disabled parallel because of "Could not open input file: logging"
+        maximumNumberOfProcesses: 0
+    editorUrl: 'idea://open?file=%%file%%&line=%%line%%'

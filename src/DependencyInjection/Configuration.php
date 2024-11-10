@@ -11,7 +11,7 @@ class Configuration implements ConfigurationInterface
 {
     public function getConfigTreeBuilder(): TreeBuilder
     {
-        $treeBuilder = new TreeBuilder('job_queue');
+        $treeBuilder = new TreeBuilder('job_queue', 'array');
 
         /** @noinspection NullPointerExceptionInspection */
         $treeBuilder->getRootNode()
@@ -20,8 +20,7 @@ class Configuration implements ConfigurationInterface
                     ->info('The table where jobs store in')
                     ->defaultValue('orm_jobs')
                 ->end() // jobs_table
-            ->end()
-        ;
+            ->end();
 
         return $treeBuilder;
     }

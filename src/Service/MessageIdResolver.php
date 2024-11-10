@@ -18,7 +18,7 @@ class MessageIdResolver
      */
     public function resolveMessageId(Envelope $envelope): ?string
     {
-        /** @var TransportMessageIdStamp $transportStamp */
+        /** @var TransportMessageIdStamp|null $transportStamp */
         $transportStamp = $envelope->last(TransportMessageIdStamp::class);
         if (null === $transportStamp) {
             return null;

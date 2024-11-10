@@ -53,6 +53,9 @@ final class JobConfiguration
         return $this;
     }
 
+    /**
+     * @param array{maxRetries: int, timeout: ?int} $arr
+     */
     public static function fromArray(array $arr): self
     {
         Assert::keyExists($arr, 'maxRetries', sprintf('No param "%s" in "%s"', 'maxRetries', __METHOD__));
@@ -64,6 +67,9 @@ final class JobConfiguration
         );
     }
 
+    /**
+     * @return array{maxRetries: int, timeout: ?int}
+     */
     public function toArray(): array
     {
         return [

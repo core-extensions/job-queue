@@ -34,7 +34,7 @@
   "scripts": {
     "cs-fix": "php-cs-fixer fix --allow-risky=yes",
     "cs-check": "php-cs-fixer fix --dry-run --diff",
-    "phpstan": "phpstan analyse src tests",
+    "phpstan": "phpstan analyse",
     "test": "phpunit",
     "test-coverage": "XDEBUG_MODE=coverage phpunit --coverage-text"
   }

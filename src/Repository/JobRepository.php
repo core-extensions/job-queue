@@ -10,7 +10,7 @@ use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @lib
+ * @template-extends ServiceEntityRepository<Job>
  */
 class JobRepository extends ServiceEntityRepository
 {
@@ -39,7 +39,6 @@ class JobRepository extends ServiceEntityRepository
 
     public function findNextChained(string $chainId, int $currPosition): ?Job
     {
-        /** @noinspection PhpIncompatibleReturnTypeInspection */
         return $this->findOneBy(['chainId' => $chainId, 'chainPosition' => $currPosition + 1]);
     }
 
@@ -64,6 +63,9 @@ class JobRepository extends ServiceEntityRepository
     }
     */
 
+    /**
+     * @param array<string, mixed> $criteria
+     */
     private function applyCriteria(QueryBuilder $qb, array $criteria): QueryBuilder
     {
         foreach ($criteria as $key => $val) {

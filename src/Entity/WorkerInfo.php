@@ -27,6 +27,9 @@ final class WorkerInfo
         return $res;
     }
 
+    /**
+     * @return array{pid: int, name: string}
+     */
     public function toArray(): array
     {
         return [
@@ -35,6 +38,10 @@ final class WorkerInfo
         ];
     }
 
+    /**
+     * @param array{pid: int, name: string} $arr
+     * @return self
+     */
     private static function fromArray(array $arr): self
     {
         Assert::keyExists($arr, 'pid', sprintf('No param "%s" in "%s"', 'pid', __METHOD__));

@@ -61,7 +61,7 @@ class JobMiddleware implements MiddlewareInterface
         }
 
         /**
-         * @var Job $job
+         * @var Job|null $job
          */
         $job = $this->jobRepository->find($jobId);
 

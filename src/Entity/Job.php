@@ -54,6 +54,7 @@ class Job
     /**
      * toArray - представление JobMessage
      *
+     * @var array<string, mixed>
      * @see JobCommandInterface
      *
      * @ORM\Column(type="json", nullable=true)
@@ -90,6 +91,7 @@ class Job
     /**
      * Информация о worker который сделал accepted.
      *
+     * @var ?array{pid: int, name: string}
      * @see WorkerInfo
      *
      * @ORM\Column(type="json", nullable=true)
@@ -133,6 +135,7 @@ class Job
     /**
      * Результат работы {*}.
      *
+     * @var ?array<string, mixed>
      * @ORM\Column(type="json", nullable=true)
      */
     private ?array $result = null;
@@ -154,6 +157,7 @@ class Job
     /**
      * Массив из ErrorInfo, где ключи ($attemptsCount - 1) (нумерация с нуля).
      *
+     * @var ?array{failedAt: string, errorCode: int, errorMessage: string, errorLine: int, errorFile: string, previousErrorCode: ?int, previousErrorMessage: ?string}
      * @see FailInfo[]
      *
      * @ORM\Column(type="json", nullable=true)
@@ -165,6 +169,7 @@ class Job
      * (так как maxRetries - должен иметь лимит)
      * (как и timeout - должен иметь лимит)
      *
+     * @var array{maxRetries: int, timeout: ?int}
      * @see JobConfiguration::default()
      *
      * @ORM\Column(type="json")
@@ -329,6 +334,8 @@ class Job
     /**
      * Вызывается в handler при успешном выполнении.
      * (result - специально сделал not nullable, чтобы хоть что то о результате всегда писали)
+     *
+     * @param array<string, mixed> $result
      */
     public function resolved(\DateTimeImmutable $resolvedAt, array $result): void
     {
@@ -482,11 +489,17 @@ class Job
         $this->jobType = $jobType;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getJobCommand(): array
     {
         return $this->jobCommand;
     }
 
+    /**
+     * @param array<string, mixed> $jobCommand
+     */
     public function setJobCommand(array $jobCommand): void
     {
         $this->jobCommand = $jobCommand;
@@ -552,11 +565,18 @@ class Job
         $this->revokeAcceptedAt = $revokeAcceptedAt;
     }
 
+    /**
+     * @return ?array{pid: int, name: string}
+     */
     public function getWorkerInfo(): ?array
     {
         return $this->workerInfo;
     }
 
+    /**
+     * @param ?array{pid: int, name: string} $workerInfo
+     * @return void
+     */
     public function setWorkerInfo(?array $workerInfo): void
     {
         $this->workerInfo = $workerInfo;
@@ -582,11 +602,17 @@ class Job
         $this->chainPosition = $chainPosition;
     }
 
+    /**
+     * @return ?array<string, mixed>
+     */
     public function getResult(): ?array
     {
         return $this->result;
     }
 
+    /**
+     * @param ?array<string, mixed> $result
+     */
     public function setResult(?array $result): void
     {
         $this->result = $result;
@@ -612,21 +638,33 @@ class Job
         $this->attemptsCount = $attemptsCount;
     }
 
+    /**
+     * @return ?array{failedAt: string, errorCode: int, errorMessage: string, errorLine: int, errorFile: string, previousErrorCode: ?int, previousErrorMessage: ?string}
+     */
     public function getErrors(): ?array
     {
         return $this->errors;
     }
 
+    /**
+     * @param ?array{failedAt: string, errorCode: int, errorMessage: string, errorLine: int, errorFile: string, previousErrorCode: ?int, previousErrorMessage: ?string} $errors
+     */
     public function setErrors(?array $errors): void
     {
         $this->errors = $errors;
     }
 
+    /**
+     * @return array{maxRetries: int, timeout: ?int}
+     */
     public function getJobConfiguration(): array
     {
         return $this->jobConfiguration;
     }
 
+    /**
+     * @param array{maxRetries: int, timeout: ?int} $jobConfiguration
+     */
     public function setJobConfiguration(array $jobConfiguration): void
     {
         $this->jobConfiguration = $jobConfiguration;

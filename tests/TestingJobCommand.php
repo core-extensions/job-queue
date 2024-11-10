@@ -7,6 +7,7 @@ namespace CoreExtensions\JobQueueBundle\Tests;
 use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Helpers;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
+use Webmozart\Assert\Assert;
 
 final class TestingJobCommand implements JobCommandInterface
 {
@@ -16,6 +17,9 @@ final class TestingJobCommand implements JobCommandInterface
     private int $int;
     private string $string;
     private \DateTimeImmutable $date;
+    /**
+     * @var array<string, mixed>
+     */
     private array $array;
 
     private function __construct()
@@ -37,6 +41,9 @@ final class TestingJobCommand implements JobCommandInterface
         $this->jobId = $job->getJobId();
     }
 
+    /**
+     * @param array<mixed> $array
+     */
     public static function fromValues(int $int, string $string, \DateTimeImmutable $date, array $array): self
     {
         $res = new self();
@@ -48,11 +55,20 @@ final class TestingJobCommand implements JobCommandInterface
         return $res;
     }
 
+    /**
+     * @param array<mixed> $arr
+     */
     public static function fromArray(array $arr): self
     {
-        return self::fromValues($arr['int'], $arr['string'], Helpers::unserializeDateTime($arr['date']), $arr['array']);
+        $date = Helpers::unserializeDateTime($arr['date']);
+        Assert::notNull($date, sprintf('Invalid param "%s" in "%s"', 'date', __METHOD__));
+
+        return self::fromValues($arr['int'], $arr['string'], $date, $arr['array']);
     }
 
+    /**
+     * @return array<mixed>
+     */
     public function toArray(): array
     {
         return [
@@ -78,6 +94,9 @@ final class TestingJobCommand implements JobCommandInterface
         return $this->date;
     }
 
+    /**
+     * @return array<mixed>
+     */
     public function getArray(): array
     {
         return $this->array;

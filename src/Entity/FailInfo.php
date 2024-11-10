@@ -37,13 +37,16 @@ final class FailInfo
         );
     }
 
+    /**
+     * @param array{failedAt: string, errorCode: int, errorMessage: string, errorLine: int, errorFile: string, previousErrorCode: ?int, previousErrorMessage: ?string} $arr
+     */
     public static function fromArray(array $arr): self
     {
         Assert::keyExists($arr, 'failedAt', sprintf('No param "%s" in "%s"', 'failedAt', __METHOD__));
-        Assert::keyExists($arr, 'code', sprintf('No param "%s" in "%s"', 'code', __METHOD__));
-        Assert::keyExists($arr, 'message', sprintf('No param "%s" in "%s"', 'message', __METHOD__));
-        Assert::keyExists($arr, 'line', sprintf('No param "%s" in "%s"', 'line', __METHOD__));
-        Assert::keyExists($arr, 'file', sprintf('No param "%s" in "%s"', 'file', __METHOD__));
+        Assert::keyExists($arr, 'errorCode', sprintf('No param "%s" in "%s"', 'code', __METHOD__));
+        Assert::keyExists($arr, 'errorMessage', sprintf('No param "%s" in "%s"', 'message', __METHOD__));
+        Assert::keyExists($arr, 'errorLine', sprintf('No param "%s" in "%s"', 'line', __METHOD__));
+        Assert::keyExists($arr, 'errorFile', sprintf('No param "%s" in "%s"', 'file', __METHOD__));
         Assert::keyExists($arr, 'previousErrorCode', sprintf('No param "%s" in "%s"', 'previousErrorCode', __METHOD__));
         Assert::keyExists(
             $arr,
@@ -53,15 +56,18 @@ final class FailInfo
 
         return self::fromValues(
             Helpers::unserializeDateTime($arr['failedAt']),
-            $arr['code'],
-            $arr['message'],
-            $arr['line'],
-            $arr['file'],
+            $arr['errorCode'],
+            $arr['errorMessage'],
+            $arr['errorLine'],
+            $arr['errorFile'],
             $arr['previousErrorCode'] ?? null,
-            $arr['previousMessage'] ?? null
+            $arr['previousErrorMessage'] ?? null
         );
     }
 
+    /**
+     * @return array{failedAt: string, errorCode: int, errorMessage: string, errorLine: int, errorFile: string, previousErrorCode: ?int, previousErrorMessage: ?string}
+     */
     public function toArray(): array
     {
         return [
