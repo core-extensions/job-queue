@@ -7,6 +7,7 @@ namespace CoreExtensions\JobQueueBundle\Tests\Middleware;
 use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Entity\WorkerInfo;
 use CoreExtensions\JobQueueBundle\Exception\JobCommandOrphanException;
+use CoreExtensions\JobQueueBundle\Exception\JobRevokedException;
 use CoreExtensions\JobQueueBundle\Exception\JobUnboundException;
 use CoreExtensions\JobQueueBundle\Middleware\JobMiddleware;
 use CoreExtensions\JobQueueBundle\Repository\JobRepository;
@@ -92,6 +93,29 @@ final class JobMiddlewareTest extends TestCase
         $envelope = new Envelope($jobCommand, [new TransportMessageIdStamp('long_string_id')]);
 
         $this->expectException(JobUnboundException::class);
+        $jobMiddleware->handle($envelope, $this->stack);
+    }
+
+    /**
+     * @test
+     */
+    public function it_yells_when_revoked_job_found(): void
+    {
+        $job = $this->job;
+        $jobMiddleware = $this->jobMiddleware;
+
+        $jobCommand = $this->jobCommandFactory->createFromJob($job);
+        $envelope = new Envelope($jobCommand, [new TransportMessageIdStamp('long_string_id')]);
+
+        // prevents unbound found
+        $this->jobRepository->method('find')->willReturn($job);
+
+        // do workflow stuff
+        $job->dispatched(new \DateTimeImmutable(), 'long_string_id');
+        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+        $job->revoked(new \DateTimeImmutable(), Job::REVOKED_DUE_DEPLOYMENT);
+
+        $this->expectException(JobRevokedException::class);
         $jobMiddleware->handle($envelope, $this->stack);
     }
 

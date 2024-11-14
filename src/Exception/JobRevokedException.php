@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace CoreExtensions\JobQueueBundle\Exception;
 
 use CoreExtensions\JobQueueBundle\Entity\Job;
+use CoreExtensions\JobQueueBundle\Helpers;
 
 /**
- * @see JobConfiguration::timeout
+ * throws when interaction with revoked job occurred
  */
-final class JobTimeoutExceededException extends \RuntimeException implements JobNonRetryableExceptionInterface
+final class JobRevokedException extends \RuntimeException implements JobNonRetryableExceptionInterface
 {
     private string $jobId;
 
@@ -17,9 +18,10 @@ final class JobTimeoutExceededException extends \RuntimeException implements Job
     {
         $res = new self(
             sprintf(
-                'Job "%s" failed due to timeout exceed (timeout %d sec))',
+                'Job "%s" was already revoked at "%s" (for %d))',
                 $job->getJobId(),
-                $job->getJobConfiguration()->getTimeout(),
+                Helpers::serializeDateTime($job->getRevokedAt()),
+                $job->getRevokedFor(),
             )
         );
         $res->jobId = $job->getJobId();

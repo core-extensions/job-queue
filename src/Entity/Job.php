@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle\Entity;
 
+use CoreExtensions\JobQueueBundle\Exception\JobRevokedException;
 use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
 use CoreExtensions\JobQueueBundle\Helpers;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
@@ -444,21 +445,21 @@ class Job
         $this->setErrors($errors);
     }
 
-    private function assertJobNotSealed(string $action): void
+    /**
+     * (метод следует периодически вызывать в коде например в итерациях (каждые определенное кол-во раз или секунды).
+     */
+    public function assertJobNotRevoked(): void
+    {
+        if (null !== $this->getRevokedAt()) {
+            throw JobRevokedException::fromJob($this);
+        }
+    }
+
+    public function assertJobNotSealed(string $action): void
     {
         if (null !== $this->getSealedAt()) {
             throw JobSealedInteractionException::fromJob($this, $action);
         }
-
-        Assert::null(
-            $this->getSealedAt(),
-            sprintf(
-                'Failed to apply action "%s" to sealed job "%s" (%d))',
-                $action,
-                $this->getJobId(),
-                $this->getSealedDue()
-            )
-        );
     }
 
     private function incAttemptsCount(): void

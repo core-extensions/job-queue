@@ -70,6 +70,8 @@ class JobMiddleware implements MiddlewareInterface
             throw JobCommandOrphanException::fromJobCommand($jobCommand);
         }
 
+        $job->assertJobNotRevoked();
+
         // pre handling
         if (!$envelope->last(ReceivedStamp::class)) {
             $this->acceptJob($job);
@@ -84,9 +86,14 @@ class JobMiddleware implements MiddlewareInterface
 
         // post handling
         if ($envelope->last(ReceivedStamp::class)) {
+            // do chain stuff if chained and resolved
             if (null !== $job->getResolvedAt() && null !== $job->getChainId()) {
                 $this->handleChain($job);
             }
+
+            // TODO:
+            // resolving?
+
 
             $this->entityManager->persist($job);
             // TODO: подумать нужно ли это
