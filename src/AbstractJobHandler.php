@@ -9,9 +9,8 @@ use Symfony\Component\Messenger\Handler\MessageHandlerInterface;
 // нужен для: assertJobIsRevoked
 abstract class AbstractJobHandler implements MessageHandlerInterface
 {
-    public function __invoke(JobCommandInterface $jobCommand): void
-    {
-    }
+    // TODO: или интерфейс, результат важно в виде массива
+    abstract public function __invoke(JobCommandInterface $jobCommand): array;
 
     // TODO: метод для поставновки результата если его нельхя получить в middleware
 
@@ -20,10 +19,10 @@ abstract class AbstractJobHandler implements MessageHandlerInterface
      * Метод следует периодически вызывать в коде например в итерациях (каждые определенное кол-во раз или секунды).
      * (TODO: возможно стоит сделать интерфейс и трейт)
      */
-    protected function assertJobIsNotRevoked(Job $job): void
-    {
-        if (null !== $job->isRevoked()) {
-            throw JobRevokedException::fromJob($job);
-        }
-    }
+    // protected function assertJobIsNotRevoked(Job $job): void
+    // {
+    //     if (null !== $job->isRevoked()) {
+    //         throw JobRevokedException::fromJob($job);
+    //     }
+    // }
 }

@@ -17,7 +17,9 @@ use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
 use Symfony\Component\Messenger\Middleware\StackInterface;
+use Symfony\Component\Messenger\Stamp\HandledStamp;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
+use Symfony\Component\Messenger\Stamp\SentStamp;
 
 /**
  * Выполняет pre и post actions.
@@ -53,60 +55,82 @@ class JobMiddleware implements MiddlewareInterface
          * @var JobCommandInterface $jobCommand
          */
         $jobCommand = $envelope->getMessage();
-        $jobId = $jobCommand->getJobId();
 
         // there are no correct way to receive an unbound job command
-        if (null === $jobId) {
-            throw JobUnboundException::fromJobCommand($jobCommand);
-        }
+        $this->assertJobNotUnbound($jobCommand);
 
         /**
          * @var Job|null $job
          */
-        $job = $this->jobRepository->find($jobId);
-
-        // there are no other way to detect orphans
-        if (null === $job) {
-            throw JobCommandOrphanException::fromJobCommand($jobCommand);
-        }
+        $job = $this->findJobOrFail($jobCommand->getJobId());
 
         $job->assertJobNotRevoked();
 
-        // pre handling
-        if (!$envelope->last(ReceivedStamp::class)) {
-            $this->acceptJob($job);
+        /**
+         * Вот точный порядок добавления stamps в Symfony Messenger:
+         *
+         * ReceivedStamp - добавляется когда сообщение получено из транспорта
+         * SentStamp - добавляется когда сообщение отправлено в транспорт
+         * TransportMessageIdStamp - добавляется транспортом после отправки сообщения
+         * HandledStamp - добавляется после обработки сообщения handler'ом
+         *
+         * ReceivedStamp и SentStamp работают в разных контекстах:
+         *
+         * При первой отправке сообщения:
+         * Создается сообщение
+         * Добавляется SentStamp
+         * Сообщение уходит в транспорт
+         * При получении из транспорта:
+         * Worker получает сообщение из транспорта
+         * Добавляется ReceivedStamp
+         * Сообщение обрабатывается
+         * То есть это два разных процесса:
+         *
+         * Producer добавляет SentStamp при отправке
+         * Consumer добавляет ReceivedStamp при получении
+         * Поэтому в middleware мы сначала проверяем ReceivedStamp - чтобы понять, что это сообщение уже из транспорта и его не нужно отправлять повторно.
+         */
 
-            $this->entityManager->persist($job);
-            // TODO: подумать нужно ли это
-            $this->entityManager->flush();
+        /**
+         * @var SentStamp|null $stamp
+         */
+        if (null === $job->getDispatchedAt() && null !== ($stamp = $envelope->last(SentStamp::class))) {
+            // TODO: подумать где делать dispatched
+            // $job->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($envelope));
         }
 
-        // next
+        /**
+         * @var ReceivedStamp|null $stamp
+         */
+        if (null === $job->getAcceptedAt() && null !== ($stamp = $envelope->last(ReceivedStamp::class))) {
+            $job->accepted(new \DateTimeImmutable(), $this->workerInfoResolver->resolveWorkerInfo($stamp));
+        }
+
+        // call next middlewares
         $envelope = $stack->next()->handle($envelope, $stack);
 
-        // post handling
-        if ($envelope->last(ReceivedStamp::class)) {
-            // do chain stuff if chained and resolved
-            if (null !== $job->getResolvedAt() && null !== $job->getChainId()) {
-                $this->handleChain($job);
+        /**
+         * @var HandledStamp|null $stamp
+         */
+        if (null === $job->getResolvedAt() && null !== ($stamp = $envelope->last(HandledStamp::class))) {
+            $job->resolved(new \DateTimeImmutable(), $stamp->getResult());
+
+            if (null !== $job->getChainId()) {
+                // dispatch next job in chain if exists
+                $nextJob = $this->jobRepository->findNextChained($job->getChainId(), $job->getChainPosition());
+                if (null !== $nextJob) {
+                    $nextEnvelope = $this->messageBus->dispatch($this->jobCommandFactory->createFromJob($nextJob));
+                    // TODO: подумать где делать dispatched
+                    $nextJob->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($nextEnvelope));
+                }
             }
-
-            // TODO:
-            // resolving?
-
-
-            $this->entityManager->persist($job);
-            // TODO: подумать нужно ли это
-            $this->entityManager->flush();
         }
 
-        return $envelope;
-    }
+        // TODO: подумать нужно ли это
+        $this->entityManager->persist($job);
+        $this->entityManager->flush();
 
-    private function acceptJob(Job $job): void
-    {
-        $workerInfo = $this->workerInfoResolver->resolveWorkerInfo();
-        $job->accepted(new \DateTimeImmutable(), $workerInfo);
+        return $envelope;
     }
 
     // TODO: using JobManager::enqueueJob? but transactional stuffs?
@@ -119,11 +143,34 @@ class JobMiddleware implements MiddlewareInterface
             $nextEnvelope = $this->messageBus->dispatch($nextMessage);
 
             // 3) mark as dispatched and persist (because new entity)
+            // TODO: правильнее будет вызывать в Middleware при SentStamp
             $nextJob->dispatched(
                 new \DateTimeImmutable(),
                 $this->messageIdResolver->resolveMessageId($nextEnvelope)
             );
             $this->entityManager->persist($nextJob);
+        }
+    }
+
+    private function findJobOrFail(string $jobId): Job
+    {
+        /**
+         * @var Job|null $job
+         */
+        $job = $this->jobRepository->find($jobId);
+
+        // there are no other way to detect orphans
+        if (null === $job) {
+            throw JobCommandOrphanException::withJobId($jobId);
+        }
+
+        return $job;
+    }
+
+    private function assertJobNotUnbound(JobCommandInterface $jobCommand): void
+    {
+        if (null === $jobCommand->getJobId()) {
+            throw JobUnboundException::fromJobCommand($jobCommand);
         }
     }
 }

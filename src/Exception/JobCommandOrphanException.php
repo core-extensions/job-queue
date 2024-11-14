@@ -17,15 +17,15 @@ final class JobCommandOrphanException extends \RuntimeException implements JobNo
 {
     private string $jobId;
 
-    public static function fromJobCommand(JobCommandInterface $jobCommand): self
+    public static function withJobId(string $jobId): self
     {
         $res = new self(
             sprintf(
                 'Using orphan job command of job "%s"',
-                $jobCommand->getJobId(),
+                $jobId,
             )
         );
-        $res->jobId = $jobCommand->getJobId();
+        $res->jobId = $jobId;
 
         return $res;
     }

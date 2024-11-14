@@ -56,6 +56,7 @@ class Job
      * toArray - представление JobMessage
      *
      * @var array<string, mixed>
+     *
      * @see JobCommandInterface
      *
      * @ORM\Column(type="json", nullable=true)
@@ -93,6 +94,7 @@ class Job
      * Информация о worker который сделал accepted.
      *
      * @var ?array{pid: int, name: string}
+     *
      * @see WorkerInfo
      *
      * @ORM\Column(type="json", nullable=true)
@@ -137,6 +139,7 @@ class Job
      * Результат работы {*}.
      *
      * @var ?array<string, mixed>
+     *
      * @ORM\Column(type="json", nullable=true)
      */
     private ?array $result = null;
@@ -159,6 +162,7 @@ class Job
      * Массив из ErrorInfo, где ключи ($attemptsCount - 1) (нумерация с нуля).
      *
      * @var ?array{failedAt: string, errorCode: int, errorMessage: string, errorLine: int, errorFile: string, previousErrorCode: ?int, previousErrorMessage: ?string}
+     *
      * @see FailInfo[]
      *
      * @ORM\Column(type="json", nullable=true)
@@ -171,6 +175,7 @@ class Job
      * (как и timeout - должен иметь лимит)
      *
      * @var array{maxRetries: int, timeout: ?int}
+     *
      * @see JobConfiguration::default()
      *
      * @ORM\Column(type="json")
@@ -228,6 +233,8 @@ class Job
 
     /**
      * Вызывается когда удалось опубликовать в bus.
+     * TODO: правильнее будет вызывать в Middleware? но если он будет работать в async что получится двойной вызов?
+     * TODO: тем более вызывается в транзакции
      */
     public function dispatched(\DateTimeImmutable $dispatchedAt, ?string $dispatchedMessageId): void
     {
@@ -576,6 +583,7 @@ class Job
 
     /**
      * @param ?array{pid: int, name: string} $workerInfo
+     *
      * @return void
      */
     public function setWorkerInfo(?array $workerInfo): void

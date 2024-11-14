@@ -40,6 +40,7 @@ final class WorkerInfo
 
     /**
      * @param array{pid: int, name: string} $arr
+     *
      * @return self
      */
     private static function fromArray(array $arr): self

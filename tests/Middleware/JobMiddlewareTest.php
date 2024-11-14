@@ -21,6 +21,7 @@ use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
 use Symfony\Component\Messenger\Middleware\StackInterface;
+use Symfony\Component\Messenger\Stamp\HandledStamp;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
 
@@ -128,7 +129,10 @@ final class JobMiddlewareTest extends TestCase
         $jobMiddleware = $this->jobMiddleware;
 
         $jobCommand = $this->jobCommandFactory->createFromJob($job);
-        $envelope = new Envelope($jobCommand, [new TransportMessageIdStamp('long_string_id')]);
+        $envelope = new Envelope(
+            $jobCommand,
+            [new TransportMessageIdStamp('long_string_id'), new ReceivedStamp('transport_1')]
+        );
 
         $this->jobRepository->method('find')->willReturn($job);
         $this->workerInfoResolver->method('resolveWorkerInfo')->willReturn(WorkerInfo::fromValues(1, 'worker_1'));
@@ -171,7 +175,6 @@ final class JobMiddlewareTest extends TestCase
         // do workflow stuffs
         $job1->dispatched(new \DateTimeImmutable(), 'long_string_id');
         $job1->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
-        $job1->resolved(new \DateTimeImmutable(), ['result' => 'good']);
 
         // should not be orphan
         $this->jobRepository->method('find')->willReturn($job1);
@@ -180,8 +183,8 @@ final class JobMiddlewareTest extends TestCase
         // should resolve worker info
         $this->workerInfoResolver->method('resolveWorkerInfo')->willReturn(WorkerInfo::fromValues(1, 'worker_1'));
 
-        // emulate post-call
-        $envelope1 = $envelope1->with(new ReceivedStamp('some_transport'));
+        // emulate resolved
+        $envelope1 = $envelope1->with(new HandledStamp(['result' => 'good'], 'handler_1'));
         $this->stackNextMiddleware->method('handle')->willReturn($envelope1); // due envelope is final
 
         // should dispatch next command
@@ -203,6 +206,10 @@ final class JobMiddlewareTest extends TestCase
         // chained job 1
         $job1 = $this->job;
         $job1->bindToChain('dcaf6b93-1a63-400d-95cf-10b604cdc61a', 0);
+
+        $job1->dispatched(new \DateTimeImmutable(), 'long_message_id_1');
+        $job1->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+
         $jobCommand1 = $this->jobCommandFactory->createFromJob($job1);
         $envelope1 = new Envelope($jobCommand1, [new TransportMessageIdStamp('long_string_id_1')]);
 
@@ -214,8 +221,12 @@ final class JobMiddlewareTest extends TestCase
         $this->workerInfoResolver->method('resolveWorkerInfo')->willReturn(WorkerInfo::fromValues(1, 'worker_1'));
 
         // emulate post-call for job1
-        $envelope1 = $envelope1->with(new ReceivedStamp('some_transport'));
+        $envelope1 = $envelope1->with(
+            new ReceivedStamp('some_transport'),
+            new HandledStamp(['result' => 'good'], 'handler_1')
+        );
         $this->stackNextMiddleware->method('handle')->willReturn($envelope1); // due envelope is final
+
         $jobMiddleware->handle($envelope1, $this->stack);
 
         // should not dispatch next command

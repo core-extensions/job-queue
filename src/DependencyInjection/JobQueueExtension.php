@@ -13,6 +13,7 @@ class JobQueueExtension extends Extension
 {
     /**
      * @param array<string, mixed> $configs
+     *
      * @throws \Exception
      */
     public function load(array $configs, ContainerBuilder $container): void
