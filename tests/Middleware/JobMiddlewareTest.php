@@ -173,8 +173,11 @@ final class JobMiddlewareTest extends TestCase
         $job1->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
         $job1->resolved(new \DateTimeImmutable(), ['result' => 'good']);
 
+        // should not be orphan
         $this->jobRepository->method('find')->willReturn($job1);
+        // should find next chained job
         $this->jobRepository->method('findNextChained')->willReturn($job2);
+        // should resolve worker info
         $this->workerInfoResolver->method('resolveWorkerInfo')->willReturn(WorkerInfo::fromValues(1, 'worker_1'));
 
         // emulate post-call
@@ -188,6 +191,35 @@ final class JobMiddlewareTest extends TestCase
 
         // should commit dispatched at
         $this->assertNotNull($job2->getDispatchedAt());
+    }
+
+    /**
+     * @test
+     */
+    public function it_dont_dispatch_any_job_of_chain_if_end(): void
+    {
+        $jobMiddleware = $this->jobMiddleware;
+
+        // chained job 1
+        $job1 = $this->job;
+        $job1->bindToChain('dcaf6b93-1a63-400d-95cf-10b604cdc61a', 0);
+        $jobCommand1 = $this->jobCommandFactory->createFromJob($job1);
+        $envelope1 = new Envelope($jobCommand1, [new TransportMessageIdStamp('long_string_id_1')]);
+
+        // should not be orphan
+        $this->jobRepository->method('find')->willReturn($job1);
+        // should not find next chained job (due chain consists one item)
+        $this->jobRepository->method('findNextChained')->willReturn(null);
+        // should resolve worker info
+        $this->workerInfoResolver->method('resolveWorkerInfo')->willReturn(WorkerInfo::fromValues(1, 'worker_1'));
+
+        // emulate post-call for job1
+        $envelope1 = $envelope1->with(new ReceivedStamp('some_transport'));
+        $this->stackNextMiddleware->method('handle')->willReturn($envelope1); // due envelope is final
+        $jobMiddleware->handle($envelope1, $this->stack);
+
+        // should not dispatch next command
+        $this->messageBus->expects($this->never())->method('dispatch');
     }
 
     /**
@@ -214,10 +246,6 @@ final class JobMiddlewareTest extends TestCase
 
         $this->stackNextMiddleware->method('handle')->willReturn($envelope); // due envelope is final
         $jobMiddleware->handle($envelope, $this->stack);
-    }
-
-    public function it_dont_dispatch_any_job_of_chain_if_end(): void
-    {
     }
 
     private function provideJob(string $jobId, TestingJobCommand $command, \DateTimeImmutable $createdAt): Job
