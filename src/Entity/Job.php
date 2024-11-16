@@ -16,7 +16,9 @@ use Webmozart\Assert\Assert;
 /**
  * // TODO: doctrine entity - точно нужно чтобы было doctrine entity?
  * // TODO: optimistic locking чтобы с UI не могли работать со старыми данными
- * // TODO: из-за retryable время надо фиксировать в множественном виде и другие некоторые поля
+ * // TODO: из-за retryable время надо фиксировать в множественном виде следующие поля:
+ * //  - $dispatchedAt, $dispatchedMessageId
+ * //  - $acceptedAt, $acceptedWorkerInfo
  *
  * @ORM\Entity(repositoryClass="CoreExtensions\JobQueueBundle\Repository\JobRepository")
  * @ORM\Table(name="orm_jobs", schema="jobs"))
@@ -69,35 +71,44 @@ class Job
     private \DateTimeImmutable $createdAt;
 
     /**
-     * Дата постановки в очередь.
+     * Массив из DispatchInfo, где ключи ($attemptsCount - 1) (нумерация с нуля).
      *
-     * @ORM\Column(type="datetimetz_immutable", nullable=true)
-     */
-    private ?\DateTimeImmutable $dispatchedAt = null;
-
-    /**
-     * Идентификатор сообщения в шине.
-     * (в rabbit вида "amq.ctag-{random_string}-{number}")
-     */
-    private ?string $dispatchedMessageId = null;
-
-    /**
-     * Дата начала обработки.
+     * @var ?array{dispatchedAt: string, messageId: string}
      *
-     * @ORM\Column(type="datetimetz_immutable")
-     */
-    private ?\DateTimeImmutable $acceptedAt = null;
-
-    /**
-     * Информация о worker который сделал accepted.
-     *
-     * @var ?array{pid: int, name: string}
-     *
-     * @see WorkerInfo
+     * @see DispatchInfo[]
      *
      * @ORM\Column(type="json", nullable=true)
      */
-    private ?array $workerInfo = null;
+    private ?array $dispatches = null;
+
+    /**
+     * Массив из AcceptanceInfo, где ключи ($attemptsCount - 1) (нумерация с нуля).
+     *
+     * @var ?array{accepteddAt: string, worker: WorkerInfo}
+     *
+     * @see AcceptanceInfo[]
+     *
+     * @ORM\Column(type="json", nullable=true)
+     */
+    private ?array $acceptances = null;
+
+    /**
+     * Дата последней попытки постановки в очередь.
+     * (denormalized)
+     * (нужна для простой фильтрации при поиске)
+     *
+     * @ORM\Column(type="datetimetz_immutable", nullable=true)
+     */
+    private ?\DateTimeImmutable $lastDispatchedAt = null;
+
+    /**
+     * Дата последней попытки начала обработки.
+     * (denormalized)
+     * (нужна для простой фильтрации при поиске)
+     *
+     * @ORM\Column(type="datetimetz_immutable")
+     */
+    private ?\DateTimeImmutable $lastAcceptedAt = null;
 
     /**
      * Дата отмены.
@@ -134,7 +145,7 @@ class Job
     private ?int $chainPosition = null;
 
     /**
-     * Результат работы {*}.
+     * Результат работы.
      *
      * @var ?array<string, mixed>
      *
@@ -231,12 +242,13 @@ class Job
 
     /**
      * Вызывается когда удалось опубликовать в bus.
-     * TODO: правильнее будет вызывать в Middleware? но если он будет работать в async что получится двойной вызов?
-     * TODO: тем более вызывается в
-     * TODO: может вызываться несколько раз
+     * (refreshing denormalized field too)
      */
-    public function dispatched(\DateTimeImmutable $dispatchedAt, ?string $dispatchedMessageId): void
+    public function dispatched(DispatchInfo $dispatchInfo): void
     {
+        $dispatchedAt = $dispatchInfo->dispatchedAt();
+        $dispatchedMessageId = $dispatchInfo->messageId();
+
         Assert::greaterThanEq(
             $dispatchedAt->getTimestamp(),
             $this->getCreatedAt()->getTimestamp(),
@@ -244,7 +256,7 @@ class Job
                 'Job "%s" cannot be dispatched "%s" earlier than created "%s" in "%s"',
                 $this->getJobId(),
                 Helpers::serializeDateTime($dispatchedAt),
-                Helpers::serializeDateTime($this->getDispatchedAt()),
+                Helpers::serializeDateTime($this->getLastDispatchedAt()),
                 __METHOD__
             )
         );
@@ -254,16 +266,19 @@ class Job
         );
         $this->assertJobNotSealed('dispatched');
 
-        $this->setDispatchedAt($dispatchedAt);
-        $this->setDispatchedMessageId($dispatchedMessageId);
+        $this->recordDispatch($dispatchInfo);
+        $this->setLastDispatchedAt($dispatchedAt);
     }
 
     /**
      * Вызывается когда handler получил задачу из bus.
+     * (refreshing denormalized field too)
      */
-    public function accepted(\DateTimeImmutable $acceptedAt, WorkerInfo $workerInfo): void
+    public function accepted(AcceptanceInfo $acceptanceInfo): void
     {
-        $dispatchedAt = $this->getDispatchedAt();
+        $acceptedAt = $acceptanceInfo->acceptedAt();
+
+        $dispatchedAt = $this->getLastDispatchedAt();
 
         Assert::notNull(
             $dispatchedAt,
@@ -276,14 +291,14 @@ class Job
                 'Job "%s" cannot be accepted "%s" earlier than dispatched "%s" in "%s"',
                 $this->getJobId(),
                 Helpers::serializeDateTime($acceptedAt),
-                Helpers::serializeDateTime($this->getDispatchedAt()),
+                Helpers::serializeDateTime($this->getLastDispatchedAt()),
                 __METHOD__
             )
         );
         $this->assertJobNotSealed('accepted');
 
-        $this->setAcceptedAt($acceptedAt);
-        $this->setWorkerInfo($workerInfo->toArray());
+        $this->recordAcceptance($acceptanceInfo);
+        $this->setLastAcceptedAt($acceptedAt);
     }
 
     /**
@@ -346,7 +361,7 @@ class Job
      */
     public function resolved(\DateTimeImmutable $resolvedAt, array $result): void
     {
-        $acceptedAt = $this->getAcceptedAt();
+        $acceptedAt = $this->getLastAcceptedAt();
 
         Assert::notNull(
             $acceptedAt,
@@ -359,7 +374,7 @@ class Job
                 'Job "%s" cannot be resolved "%s" earlier than accepted "%s" in "%s"',
                 $this->getJobId(),
                 Helpers::serializeDateTime($acceptedAt),
-                Helpers::serializeDateTime($this->getDispatchedAt()),
+                Helpers::serializeDateTime($this->getLastDispatchedAt()),
                 __METHOD__
             )
         );
@@ -379,11 +394,12 @@ class Job
 
     /**
      * Вызывается в handler при каждом fail.
+     * (increments attempts count)
      */
     public function failed(FailInfo $errorInfo): void
     {
         $failedAt = $errorInfo->failedAt();
-        $acceptedAt = $this->getAcceptedAt();
+        $acceptedAt = $this->getLastAcceptedAt();
 
         Assert::notNull(
             $acceptedAt,
@@ -396,14 +412,18 @@ class Job
                 'Job "%s" cannot be failed "%s" earlier than accepted "%s" in "%s"',
                 $this->getJobId(),
                 Helpers::serializeDateTime($acceptedAt),
-                Helpers::serializeDateTime($this->getDispatchedAt()),
+                Helpers::serializeDateTime($this->getLastDispatchedAt()),
                 __METHOD__
             )
         );
         $this->assertJobNotSealed('failed');
 
-        $this->commitFailedAttempt($errorInfo);
+        // we should increment attempts count
+        $this->incAttemptsCount();
 
+        $this->recordFailedAttempt($errorInfo);
+
+        // TODO: вынесем в middle?
         $jobConfiguration = JobConfiguration::fromArray($this->getJobConfiguration());
         $maxRetries = $jobConfiguration->getMaxRetries();
 
@@ -442,14 +462,52 @@ class Job
         $this->setSealedDue($due);
     }
 
-    private function commitFailedAttempt(FailInfo $failInfo): void
+    private function recordDispatch(DispatchInfo $dispatchInfo): void
     {
-        $this->incAttemptsCount();
+        $dispatched = $this->getDispatches() ?? [];
+        $dispatched[] = $dispatchInfo->toArray();
 
+        $this->setDispatches($dispatched);
+    }
+
+    private function recordAcceptance(AcceptanceInfo $acceptanceInfo): void
+    {
+        $acceptances = $this->getAcceptances() ?? [];
+        $acceptances[] = $acceptanceInfo->toArray();
+
+        $this->setAcceptances($acceptances);
+    }
+
+    private function recordFailedAttempt(FailInfo $failInfo): void
+    {
         $errors = $this->getErrors() ?? [];
         $errors[] = $failInfo->toArray();
 
         $this->setErrors($errors);
+    }
+
+
+    private function incAttemptsCount(): void
+    {
+        $this->setAttemptsCount($this->getAttemptsCount() + 1);
+    }
+
+    public function lastDispatch(): ?DispatchInfo
+    {
+        if (null === $this->dispatches) {
+            return null;
+        }
+
+        return DispatchInfo::fromArray(end($this->dispatches));
+    }
+
+    public function lastAcceptance(): ?AcceptanceInfo
+    {
+        if (null === $this->acceptances) {
+            return null;
+        }
+
+        return AcceptanceInfo::fromArray(end($this->acceptances));
     }
 
     /**
@@ -467,11 +525,6 @@ class Job
         if (null !== $this->getSealedAt()) {
             throw JobSealedInteractionException::fromJob($this, $action);
         }
-    }
-
-    private function incAttemptsCount(): void
-    {
-        $this->setAttemptsCount($this->getAttemptsCount() + 1);
     }
 
     // <<< domain logic
@@ -523,24 +576,14 @@ class Job
         $this->createdAt = $createdAt;
     }
 
-    public function getDispatchedAt(): ?\DateTimeImmutable
+    public function getLastDispatchedAt(): ?\DateTimeImmutable
     {
-        return $this->dispatchedAt;
+        return $this->lastDispatchedAt;
     }
 
-    public function setDispatchedAt(?\DateTimeImmutable $dispatchedAt): void
+    public function setLastDispatchedAt(?\DateTimeImmutable $lastDispatchedAt): void
     {
-        $this->dispatchedAt = $dispatchedAt;
-    }
-
-    public function getDispatchedMessageId(): ?string
-    {
-        return $this->dispatchedMessageId;
-    }
-
-    public function setDispatchedMessageId(?string $dispatchedMessageId): void
-    {
-        $this->dispatchedMessageId = $dispatchedMessageId;
+        $this->lastDispatchedAt = $lastDispatchedAt;
     }
 
     public function getRevokedAt(): ?\DateTimeImmutable
@@ -571,24 +614,6 @@ class Job
     public function setRevokeAcceptedAt(?\DateTimeImmutable $revokeAcceptedAt): void
     {
         $this->revokeAcceptedAt = $revokeAcceptedAt;
-    }
-
-    /**
-     * @return ?array{pid: int, name: string}
-     */
-    public function getWorkerInfo(): ?array
-    {
-        return $this->workerInfo;
-    }
-
-    /**
-     * @param ?array{pid: int, name: string} $workerInfo
-     *
-     * @return void
-     */
-    public function setWorkerInfo(?array $workerInfo): void
-    {
-        $this->workerInfo = $workerInfo;
     }
 
     public function getChainId(): ?string
@@ -709,13 +734,33 @@ class Job
         $this->sealedDue = $sealedDue;
     }
 
-    public function getAcceptedAt(): ?\DateTimeImmutable
+    public function getLastAcceptedAt(): ?\DateTimeImmutable
     {
-        return $this->acceptedAt;
+        return $this->lastAcceptedAt;
     }
 
-    public function setAcceptedAt(?\DateTimeImmutable $acceptedAt): void
+    public function setLastAcceptedAt(?\DateTimeImmutable $lastAcceptedAt): void
     {
-        $this->acceptedAt = $acceptedAt;
+        $this->lastAcceptedAt = $lastAcceptedAt;
+    }
+
+    public function getDispatches(): ?array
+    {
+        return $this->dispatches;
+    }
+
+    public function setDispatches(?array $dispatches): void
+    {
+        $this->dispatches = $dispatches;
+    }
+
+    public function getAcceptances(): ?array
+    {
+        return $this->acceptances;
+    }
+
+    public function setAcceptances(?array $acceptances): void
+    {
+        $this->acceptances = $acceptances;
     }
 }

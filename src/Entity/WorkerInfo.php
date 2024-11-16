@@ -48,10 +48,7 @@ final class WorkerInfo
         Assert::keyExists($arr, 'pid', sprintf('No param "%s" in "%s"', 'pid', __METHOD__));
         Assert::keyExists($arr, 'name', sprintf('No param "%s" in "%s"', 'name', __METHOD__));
 
-        return self::fromValues(
-            $arr['pid'],
-            $arr['name']
-        );
+        return self::fromValues($arr['pid'], $arr['name']);
     }
 
     public function pid(): int

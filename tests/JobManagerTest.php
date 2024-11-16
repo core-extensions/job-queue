@@ -73,8 +73,10 @@ final class JobManagerTest extends TestCase
         $jobManager->enqueueJob($job);
 
         // we expect job will be marked as dispatched
-        $this->assertNotNull($job->getDispatchedAt());
-        $this->assertEquals('long_string_id', $job->getDispatchedMessageId());
+        $this->assertNotNull($job->getLastDispatchedAt());
+
+        $this->assertEquals($job->getLastDispatchedAt(), $job->lastDispatch()->dispatchedAt());
+        $this->assertEquals('long_string_id', $job->lastDispatch()->messageId());
     }
 
     /**
@@ -116,12 +118,13 @@ final class JobManagerTest extends TestCase
         $jobManager->enqueueChain('be3a7e26-aa34-454b-9c5d-121356e13910', [$job1, $job2, $job3]);
 
         // we expect only head job will be marked as dispatched
-        $this->assertNotNull($job1->getDispatchedAt());
-        $this->assertEquals('long_string_id_1', $job1->getDispatchedMessageId());
+        $this->assertNotNull($job1->getLastDispatchedAt());
+        $this->assertEquals($job1->getLastDispatchedAt(), $job1->lastDispatch()->dispatchedAt());
+        $this->assertEquals('long_string_id_1', $job1->lastDispatch()->messageId());
 
-        $this->assertNull($job2->getDispatchedAt());
-        $this->assertNull($job2->getDispatchedMessageId());
-        $this->assertNull($job3->getDispatchedAt());
-        $this->assertNull($job3->getDispatchedMessageId());
+        $this->assertNull($job2->getLastDispatchedAt());
+        $this->assertNull($job2->getDispatches());
+        $this->assertNull($job3->getLastDispatchedAt());
+        $this->assertNull($job3->getDispatches());
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle;
 
+use CoreExtensions\JobQueueBundle\Entity\DispatchInfo;
 use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Service\MessageIdResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -47,7 +48,12 @@ final class JobManager
             $envelope = $this->messageBus->dispatch($this->jobCommandFactory->createFromJob($job));
 
             // 2) mark as dispatched and persist (because new entity)
-            $job->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($envelope));
+            $job->dispatched(
+                DispatchInfo::fromValues(
+                    new \DateTimeImmutable(),
+                    $this->messageIdResolver->resolveMessageId($envelope)
+                )
+            );
             $this->entityManager->persist($job);
 
             // 3) writing to db
@@ -109,7 +115,12 @@ final class JobManager
             $envelope = $this->messageBus->dispatch($this->jobCommandFactory->createFromJob($headJob));
 
             // 3) mark head as dispatched
-            $headJob->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($envelope));
+            $headJob->dispatched(
+                DispatchInfo::fromValues(
+                    new \DateTimeImmutable(),
+                    $this->messageIdResolver->resolveMessageId($envelope)
+                )
+            );
 
             // 4) persist all (because new entity)
             foreach ($jobs as $job) {

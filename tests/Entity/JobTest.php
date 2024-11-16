@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle\Tests\Entity;
 
+use CoreExtensions\JobQueueBundle\Entity\AcceptanceInfo;
+use CoreExtensions\JobQueueBundle\Entity\DispatchInfo;
 use CoreExtensions\JobQueueBundle\Entity\FailInfo;
 use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Entity\WorkerInfo;
@@ -45,10 +47,10 @@ final class JobTest extends TestCase
         $this->assertEquals(TestingJobCommand::JOB_TYPE, $job->getJobType());
         $this->assertNotNull($job->getJobCommand());
         $this->assertEquals($createdAt, $job->getCreatedAt());
-        $this->assertNull($job->getDispatchedAt());
-        $this->assertNull($job->getDispatchedMessageId());
-        $this->assertNull($job->getAcceptedAt());
-        $this->assertNull($job->getWorkerInfo());
+        $this->assertNull($job->getLastDispatchedAt());
+        $this->assertNull($job->lastDispatch());
+        $this->assertNull($job->getLastAcceptedAt());
+        $this->assertNull($job->lastAcceptance());
         $this->assertNull($job->getResolvedAt());
         $this->assertNull($job->getRevokedFor());
         $this->assertNull($job->getRevokeAcceptedAt());
@@ -82,10 +84,10 @@ final class JobTest extends TestCase
         );
 
         $dispatchedAt = new \DateTimeImmutable();
-        $job->dispatched($dispatchedAt, 'random_string_id');
+        $job->dispatched(DispatchInfo::fromValues($dispatchedAt, 'random_string_id'));
 
-        $this->assertEquals($dispatchedAt, $job->getDispatchedAt());
-        $this->assertEquals('random_string_id', $job->getDispatchedMessageId());
+        $this->assertEquals($dispatchedAt, $job->getLastDispatchedAt());
+        $this->assertEquals('random_string_id', $job->lastDispatch()->messageId());
     }
 
     /**
@@ -103,11 +105,14 @@ final class JobTest extends TestCase
         $workerInfo = WorkerInfo::fromValues(2, 'worker_2');
 
         // job must be dispatched before
-        $job->dispatched(new \DateTimeImmutable(), 'random_string_id');
-        $job->accepted($acceptedAt, $workerInfo);
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id_1'));
+        $job->accepted(AcceptanceInfo::fromValues($acceptedAt, $workerInfo));
 
-        $this->assertEquals($acceptedAt, $job->getAcceptedAt());
-        $this->assertEquals($workerInfo->toArray(), $job->getWorkerInfo());
+        $this->assertEquals('long_string_id_1', $job->lastDispatch()->messageId());
+
+        $this->assertEquals($acceptedAt, $job->getLastAcceptedAt());
+        $this->assertEquals($acceptedAt, $job->lastAcceptance()->acceptedAt());
+        $this->assertEquals($workerInfo->toArray(), $job->lastAcceptance()->workerInfo()->toArray());
     }
 
     /**
@@ -176,8 +181,8 @@ final class JobTest extends TestCase
         ];
 
         // job must be dispatched and accepted before
-        $job->dispatched(new \DateTimeImmutable(), 'some_string_id');
-        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'some_string_id'));
+        $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
 
         $resolvedAt = new \DateTimeImmutable();
         $job->resolved($resolvedAt, $result);
@@ -209,8 +214,8 @@ final class JobTest extends TestCase
         );
 
         // job must be dispatched and accepted before
-        $job->dispatched(new \DateTimeImmutable(), 'some_string_id');
-        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'some_string_id'));
+        $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
 
         $job->failed($failInfo);
 
@@ -234,8 +239,8 @@ final class JobTest extends TestCase
         $job->configure(JobConfiguration::default()->withMaxRetries(3));
 
         // job must be dispatched and accepted before
-        $job->dispatched(new \DateTimeImmutable(), 'some_string_id');
-        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'some_string_id'));
+        $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
 
         $failedAt1 = new \DateTimeImmutable();
         $error1 = FailInfo::fromThrowable(
@@ -295,8 +300,8 @@ final class JobTest extends TestCase
         $job = $this->job;
 
         // making sealed through failing
-        $job->dispatched(new \DateTimeImmutable(), 'long_string_id');
-        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
+        $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
         $job->failed(
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
@@ -304,7 +309,7 @@ final class JobTest extends TestCase
         // every action should throw exception if job is sealed
         $this->expectException(JobSealedInteractionException::class);
         $this->expectExceptionMessageMatches('|dispatched|is');
-        $job->dispatched(new \DateTimeImmutable(), 'string_id');
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'string_id'));
     }
 
     /**
@@ -315,15 +320,15 @@ final class JobTest extends TestCase
         $job = $this->job;
 
         // making sealed through failing
-        $job->dispatched(new \DateTimeImmutable(), 'long_string_id');
-        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
+        $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
         $job->failed(
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
 
         $this->expectException(JobSealedInteractionException::class);
         $this->expectExceptionMessageMatches('|accepted|is');
-        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+        $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
     }
 
     /**
@@ -334,8 +339,8 @@ final class JobTest extends TestCase
         $job = $this->job;
 
         // making sealed through failing
-        $job->dispatched(new \DateTimeImmutable(), 'long_string_id');
-        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
+        $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
         $job->failed(
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
@@ -353,8 +358,8 @@ final class JobTest extends TestCase
         $job = $this->job;
 
         // making sealed through failing
-        $job->dispatched(new \DateTimeImmutable(), 'long_string_id');
-        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
+        $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
         $job->revoked(new \DateTimeImmutable(), Job::REVOKED_DUE_DEPLOYMENT);
         $job->failed(
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
@@ -372,8 +377,8 @@ final class JobTest extends TestCase
     {
         $job = $this->job;
         // workflow stuff
-        $job->dispatched(new \DateTimeImmutable(), 'string_id');
-        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worked_1'));
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'string_id'));
+        $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worked_1')));
 
         // making sealed through failing
         $job->failed(
@@ -392,8 +397,8 @@ final class JobTest extends TestCase
     {
         $job = $this->job;
         // workflow stuff
-        $job->dispatched(new \DateTimeImmutable(), 'string_id');
-        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worked_1'));
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'string_id'));
+        $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worked_1')));
 
         // making sealed through failing
         $job->failed(
@@ -415,8 +420,8 @@ final class JobTest extends TestCase
         $job = $this->job;
 
         // making sealed through failing
-        $job->dispatched(new \DateTimeImmutable(), 'string_id');
-        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worked_1'));
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'string_id'));
+        $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worked_1')));
         $job->failed(
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );

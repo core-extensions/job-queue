@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle\Middleware;
 
+use CoreExtensions\JobQueueBundle\Entity\AcceptanceInfo;
+use CoreExtensions\JobQueueBundle\Entity\DispatchInfo;
 use CoreExtensions\JobQueueBundle\Entity\FailInfo;
 use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Exception\JobCommandOrphanException;
@@ -97,7 +99,7 @@ class JobMiddleware implements MiddlewareInterface
         /**
          * @var SentStamp|null $stamp
          */
-        if (null === $job->getDispatchedAt() && null !== ($stamp = $envelope->last(SentStamp::class))) {
+        if (null === $job->getLastDispatchedAt() && null !== ($stamp = $envelope->last(SentStamp::class))) {
             // TODO: подумать где делать dispatched
             // $job->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($envelope));
         }
@@ -105,8 +107,13 @@ class JobMiddleware implements MiddlewareInterface
         /**
          * @var ReceivedStamp|null $stamp
          */
-        if (null === $job->getAcceptedAt() && null !== ($stamp = $envelope->last(ReceivedStamp::class))) {
-            $job->accepted(new \DateTimeImmutable(), $this->workerInfoResolver->resolveWorkerInfo($stamp));
+        if (null === $job->getLastAcceptedAt() && null !== ($stamp = $envelope->last(ReceivedStamp::class))) {
+            $job->accepted(
+                AcceptanceInfo::fromValues(
+                    new \DateTimeImmutable(),
+                    $this->workerInfoResolver->resolveWorkerInfo($stamp)
+                )
+            );
         }
 
         // call next middlewares and handler
@@ -116,10 +123,16 @@ class JobMiddleware implements MiddlewareInterface
             $failedAt = new \DateTimeImmutable();
             $job->failed(FailInfo::fromThrowable($failedAt, $retryableException));
 
+            // if job sealed then the maxRetries is reached
+            // so should be re-dispatched if not sealed
             if (null === $job->getSealedAt()) {
-                // should be re-dispatched if not sealed
                 $repeatedEnvelope = $this->messageBus->dispatch($this->jobCommandFactory->createFromJob($job));
-                $job->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($repeatedEnvelope));
+                $job->dispatched(
+                    DispatchInfo::fromValues(
+                        new \DateTimeImmutable(),
+                        $this->messageIdResolver->resolveMessageId($repeatedEnvelope)
+                    )
+                );
             }
         } catch (JobNonRetryableExceptionInterface $nonRetryableException) {
             $failedAt = new \DateTimeImmutable();
@@ -139,11 +152,14 @@ class JobMiddleware implements MiddlewareInterface
                 // dispatch next job in chain if exists
                 $nextJob = $this->jobRepository->findNextChained($job->getChainId(), $job->getChainPosition());
                 if (null !== $nextJob) {
-                    $nextEnvelope = $this->messageBus->dispatch($this->jobCommandFactory->createFromJob($nextJob));
                     // TODO: подумать где делать dispatched
+                    // TODO: можно использовать enqueueJob?
+                    $nextEnvelope = $this->messageBus->dispatch($this->jobCommandFactory->createFromJob($nextJob));
                     $nextJob->dispatched(
-                        new \DateTimeImmutable(),
-                        $this->messageIdResolver->resolveMessageId($nextEnvelope)
+                        DispatchInfo::fromValues(
+                            new \DateTimeImmutable(),
+                            $this->messageIdResolver->resolveMessageId($nextEnvelope)
+                        )
                     );
                 }
             }
@@ -154,25 +170,6 @@ class JobMiddleware implements MiddlewareInterface
         $this->entityManager->flush();
 
         return $envelope;
-    }
-
-    // TODO: using JobManager::enqueueJob? but transactional stuffs?
-    // handling chain if need
-    private function handleChain(Job $currJob): void
-    {
-        $nextJob = $this->jobRepository->findNextChained($currJob->getChainId(), $currJob->getChainPosition());
-        if (null !== $nextJob) {
-            $nextMessage = $this->jobCommandFactory->createFromJob($nextJob);
-            $nextEnvelope = $this->messageBus->dispatch($nextMessage);
-
-            // 3) mark as dispatched and persist (because new entity)
-            // TODO: правильнее будет вызывать в Middleware при SentStamp
-            $nextJob->dispatched(
-                new \DateTimeImmutable(),
-                $this->messageIdResolver->resolveMessageId($nextEnvelope)
-            );
-            $this->entityManager->persist($nextJob);
-        }
     }
 
     private function findJobOrFail(string $jobId): Job

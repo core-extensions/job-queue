@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle\Tests\Middleware;
 
+use CoreExtensions\JobQueueBundle\Entity\AcceptanceInfo;
+use CoreExtensions\JobQueueBundle\Entity\DispatchInfo;
 use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Entity\WorkerInfo;
 use CoreExtensions\JobQueueBundle\Exception\JobCommandOrphanException;
@@ -112,8 +114,8 @@ final class JobMiddlewareTest extends TestCase
         $this->jobRepository->method('find')->willReturn($job);
 
         // do workflow stuff
-        $job->dispatched(new \DateTimeImmutable(), 'long_string_id');
-        $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
+        $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
         $job->revoked(new \DateTimeImmutable(), Job::REVOKED_DUE_DEPLOYMENT);
 
         $this->expectException(JobRevokedException::class);
@@ -138,15 +140,15 @@ final class JobMiddlewareTest extends TestCase
         $this->workerInfoResolver->method('resolveWorkerInfo')->willReturn(WorkerInfo::fromValues(1, 'worker_1'));
 
         // do workflow stuff
-        $job->dispatched(new \DateTimeImmutable(), 'long_string_id');
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
 
-        $this->assertNull($job->getAcceptedAt());
+        $this->assertNull($job->getLastAcceptedAt());
 
         // emulate pre-call
         $this->stackNextMiddleware->method('handle')->willReturn($envelope); // due envelope is final
         $jobMiddleware->handle($envelope, $this->stack);
 
-        $this->assertNotNull($job->getAcceptedAt());
+        $this->assertNotNull($job->getLastAcceptedAt());
     }
 
     /**
@@ -173,8 +175,8 @@ final class JobMiddlewareTest extends TestCase
         $envelope2 = new Envelope($jobCommand2, [new TransportMessageIdStamp('long_string_id_2')]);
 
         // do workflow stuffs
-        $job1->dispatched(new \DateTimeImmutable(), 'long_string_id');
-        $job1->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+        $job1->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
+        $job1->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
 
         // should not be orphan
         $this->jobRepository->method('find')->willReturn($job1);
@@ -193,7 +195,7 @@ final class JobMiddlewareTest extends TestCase
         $jobMiddleware->handle($envelope1, $this->stack);
 
         // should commit dispatched at
-        $this->assertNotNull($job2->getDispatchedAt());
+        $this->assertNotNull($job2->getLastDispatchedAt());
     }
 
     /**
@@ -207,8 +209,8 @@ final class JobMiddlewareTest extends TestCase
         $job1 = $this->job;
         $job1->bindToChain('dcaf6b93-1a63-400d-95cf-10b604cdc61a', 0);
 
-        $job1->dispatched(new \DateTimeImmutable(), 'long_message_id_1');
-        $job1->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
+        $job1->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_message_id_1'));
+        $job1->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
 
         $jobCommand1 = $this->jobCommandFactory->createFromJob($job1);
         $envelope1 = new Envelope($jobCommand1, [new TransportMessageIdStamp('long_string_id_1')]);
@@ -251,15 +253,15 @@ final class JobMiddlewareTest extends TestCase
         $this->workerInfoResolver->method('resolveWorkerInfo')->willReturn(WorkerInfo::fromValues(1, 'worker_1'));
 
         // do workflow stuff
-        $job->dispatched(new \DateTimeImmutable(), 'long_string_id');
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
 
-        $this->assertNull($job->getAcceptedAt());
+        $this->assertNull($job->getLastAcceptedAt());
 
         // emulate pre-call
         $this->stackNextMiddleware->method('handle')->willReturn($envelope); // due envelope is final
         $jobMiddleware->handle($envelope, $this->stack);
 
-        $this->assertNotNull($job->getAcceptedAt());
+        $this->assertNotNull($job->getLastAcceptedAt());
     }
 
     /**
@@ -279,7 +281,7 @@ final class JobMiddlewareTest extends TestCase
         $this->workerInfoResolver->method('resolveWorkerInfo')->willReturn(WorkerInfo::fromValues(1, 'worker_1'));
 
         // do workflow stuff
-        $job->dispatched(new \DateTimeImmutable(), 'long_string_id');
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
 
         $this->entityManager->expects($this->once())->method('flush');
         $this->entityManager->expects($this->once())->method('persist')->with($job);
