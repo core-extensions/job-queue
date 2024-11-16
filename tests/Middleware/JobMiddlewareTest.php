@@ -234,6 +234,35 @@ final class JobMiddlewareTest extends TestCase
     }
 
     /**
+     * @test
+     */
+    public function it_redispatch_if_retryable_exception_thrown(): void
+    {
+        $job = $this->job;
+        $jobMiddleware = $this->jobMiddleware;
+
+        $jobCommand = $this->jobCommandFactory->createFromJob($job);
+        $envelope = new Envelope(
+            $jobCommand,
+            [new TransportMessageIdStamp('long_string_id'), new ReceivedStamp('transport_1')]
+        );
+
+        $this->jobRepository->method('find')->willReturn($job);
+        $this->workerInfoResolver->method('resolveWorkerInfo')->willReturn(WorkerInfo::fromValues(1, 'worker_1'));
+
+        // do workflow stuff
+        $job->dispatched(new \DateTimeImmutable(), 'long_string_id');
+
+        $this->assertNull($job->getAcceptedAt());
+
+        // emulate pre-call
+        $this->stackNextMiddleware->method('handle')->willReturn($envelope); // due envelope is final
+        $jobMiddleware->handle($envelope, $this->stack);
+
+        $this->assertNotNull($job->getAcceptedAt());
+    }
+
+    /**
      * TODO: подумать нужно ли это
      *
      * @test

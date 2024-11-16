@@ -15,10 +15,8 @@ use Webmozart\Assert\Assert;
 
 /**
  * // TODO: doctrine entity - точно нужно чтобы было doctrine entity?
- * // TODO: retry + result of it
  * // TODO: optimistic locking чтобы с UI не могли работать со старыми данными
- * // TODO: sealing ?
- * // TODO: set && get использовать?
+ * // TODO: из-за retryable время надо фиксировать в множественном виде и другие некоторые поля
  *
  * @ORM\Entity(repositoryClass="CoreExtensions\JobQueueBundle\Repository\JobRepository")
  * @ORM\Table(name="orm_jobs", schema="jobs"))
@@ -234,7 +232,8 @@ class Job
     /**
      * Вызывается когда удалось опубликовать в bus.
      * TODO: правильнее будет вызывать в Middleware? но если он будет работать в async что получится двойной вызов?
-     * TODO: тем более вызывается в транзакции
+     * TODO: тем более вызывается в
+     * TODO: может вызываться несколько раз
      */
     public function dispatched(\DateTimeImmutable $dispatchedAt, ?string $dispatchedMessageId): void
     {
@@ -381,8 +380,9 @@ class Job
     /**
      * Вызывается в handler при каждом fail.
      */
-    public function failed(\DateTimeImmutable $failedAt, FailInfo $errorInfo): void
+    public function failed(FailInfo $errorInfo): void
     {
+        $failedAt = $errorInfo->failedAt();
         $acceptedAt = $this->getAcceptedAt();
 
         Assert::notNull(
@@ -402,7 +402,7 @@ class Job
         );
         $this->assertJobNotSealed('failed');
 
-        $this->commitFailedAttempt($failedAt, $errorInfo);
+        $this->commitFailedAttempt($errorInfo);
 
         $jobConfiguration = JobConfiguration::fromArray($this->getJobConfiguration());
         $maxRetries = $jobConfiguration->getMaxRetries();
@@ -442,7 +442,7 @@ class Job
         $this->setSealedDue($due);
     }
 
-    private function commitFailedAttempt(\DateTimeImmutable $failedAt, FailInfo $failInfo): void
+    private function commitFailedAttempt(FailInfo $failInfo): void
     {
         $this->incAttemptsCount();
 

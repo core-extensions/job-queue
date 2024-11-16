@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle\Middleware;
 
+use CoreExtensions\JobQueueBundle\Entity\FailInfo;
 use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Exception\JobCommandOrphanException;
+use CoreExtensions\JobQueueBundle\Exception\JobNonRetryableExceptionInterface;
+use CoreExtensions\JobQueueBundle\Exception\JobRetryableExceptionInterface;
 use CoreExtensions\JobQueueBundle\Exception\JobUnboundException;
 use CoreExtensions\JobQueueBundle\JobCommandFactoryInterface;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
@@ -106,8 +109,25 @@ class JobMiddleware implements MiddlewareInterface
             $job->accepted(new \DateTimeImmutable(), $this->workerInfoResolver->resolveWorkerInfo($stamp));
         }
 
-        // call next middlewares
-        $envelope = $stack->next()->handle($envelope, $stack);
+        // call next middlewares and handler
+        try {
+            $envelope = $stack->next()->handle($envelope, $stack);
+        } catch (JobRetryableExceptionInterface $retryableException) {
+            $failedAt = new \DateTimeImmutable();
+            $job->failed(FailInfo::fromThrowable($failedAt, $retryableException));
+
+            if (null === $job->getSealedAt()) {
+                // should be re-dispatched if not sealed
+                $repeatedEnvelope = $this->messageBus->dispatch($this->jobCommandFactory->createFromJob($job));
+                $job->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($repeatedEnvelope));
+            }
+        } catch (JobNonRetryableExceptionInterface $nonRetryableException) {
+            $failedAt = new \DateTimeImmutable();
+            $job->failed(FailInfo::fromThrowable($failedAt, $nonRetryableException));
+        } catch (\Throwable $tr) {
+            $failedAt = new \DateTimeImmutable();
+            $job->failed(FailInfo::fromThrowable($failedAt, $tr));
+        }
 
         /**
          * @var HandledStamp|null $stamp
@@ -121,7 +141,10 @@ class JobMiddleware implements MiddlewareInterface
                 if (null !== $nextJob) {
                     $nextEnvelope = $this->messageBus->dispatch($this->jobCommandFactory->createFromJob($nextJob));
                     // TODO: подумать где делать dispatched
-                    $nextJob->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($nextEnvelope));
+                    $nextJob->dispatched(
+                        new \DateTimeImmutable(),
+                        $this->messageIdResolver->resolveMessageId($nextEnvelope)
+                    );
                 }
             }
         }

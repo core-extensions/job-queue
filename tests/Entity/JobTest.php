@@ -203,7 +203,7 @@ final class JobTest extends TestCase
         );
 
         $failedAt = new \DateTimeImmutable();
-        $error = FailInfo::fromThrowable(
+        $failInfo = FailInfo::fromThrowable(
             $failedAt,
             new JobBusinessLogicException('Some description', 10, new \RuntimeException('Previous'))
         );
@@ -212,13 +212,13 @@ final class JobTest extends TestCase
         $job->dispatched(new \DateTimeImmutable(), 'some_string_id');
         $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
 
-        $job->failed($failedAt, $error);
+        $job->failed($failInfo);
 
         $this->assertNull($job->getResolvedAt());
         $this->assertNull($job->getResult());
         $this->assertEquals(Helpers::serializeDateTime($failedAt), $job->getErrors()[0]['failedAt']);
         $this->assertEquals(1, $job->getAttemptsCount());
-        $this->assertEquals($error->toArray(), $job->getErrors()[0]);
+        $this->assertEquals($failInfo->toArray(), $job->getErrors()[0]);
     }
 
     /**
@@ -242,14 +242,14 @@ final class JobTest extends TestCase
             $failedAt1,
             new JobBusinessLogicException('Some description 1', 10, new \RuntimeException('Previous 1'))
         );
-        $job->failed($failedAt1, $error1);
+        $job->failed($error1);
 
         $failedAt2 = new \DateTimeImmutable();
         $error2 = FailInfo::fromThrowable(
             $failedAt2,
             new JobBusinessLogicException('Some description 2', 10, new \RuntimeException('Previous 2'))
         );
-        $job->failed($failedAt2, $error2);
+        $job->failed($error2);
 
         // can't be resolved
         $this->assertNull($job->getResolvedAt());
@@ -268,7 +268,7 @@ final class JobTest extends TestCase
             $failedAt3,
             new JobBusinessLogicException('Some description 3', 10, new \RuntimeException('Previous 3'))
         );
-        $job->failed($failedAt3, $error3);
+        $job->failed($error3);
 
         // sealed only after attempts not reached
         $this->assertNotNull($job->getSealedAt());
@@ -298,7 +298,6 @@ final class JobTest extends TestCase
         $job->dispatched(new \DateTimeImmutable(), 'long_string_id');
         $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
         $job->failed(
-            new \DateTimeImmutable(),
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
 
@@ -319,7 +318,6 @@ final class JobTest extends TestCase
         $job->dispatched(new \DateTimeImmutable(), 'long_string_id');
         $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
         $job->failed(
-            new \DateTimeImmutable(),
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
 
@@ -339,7 +337,6 @@ final class JobTest extends TestCase
         $job->dispatched(new \DateTimeImmutable(), 'long_string_id');
         $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
         $job->failed(
-            new \DateTimeImmutable(),
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
 
@@ -360,7 +357,6 @@ final class JobTest extends TestCase
         $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1'));
         $job->revoked(new \DateTimeImmutable(), Job::REVOKED_DUE_DEPLOYMENT);
         $job->failed(
-            new \DateTimeImmutable(),
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
 
@@ -381,7 +377,6 @@ final class JobTest extends TestCase
 
         // making sealed through failing
         $job->failed(
-            new \DateTimeImmutable(),
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
 
@@ -402,14 +397,12 @@ final class JobTest extends TestCase
 
         // making sealed through failing
         $job->failed(
-            new \DateTimeImmutable(),
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
 
         $this->expectException(JobSealedInteractionException::class);
         $this->expectExceptionMessageMatches('|failed|is');
         $job->failed(
-            new \DateTimeImmutable(),
             FailInfo::fromThrowable(new \DateTimeImmutable(), new \RuntimeException('Hello'))
         );
     }
@@ -425,7 +418,6 @@ final class JobTest extends TestCase
         $job->dispatched(new \DateTimeImmutable(), 'string_id');
         $job->accepted(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worked_1'));
         $job->failed(
-            new \DateTimeImmutable(),
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
 
