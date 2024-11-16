@@ -43,7 +43,7 @@ final class WorkerInfo
      *
      * @return self
      */
-    private static function fromArray(array $arr): self
+    public static function fromArray(array $arr): self
     {
         Assert::keyExists($arr, 'pid', sprintf('No param "%s" in "%s"', 'pid', __METHOD__));
         Assert::keyExists($arr, 'name', sprintf('No param "%s" in "%s"', 'name', __METHOD__));
@@ -52,5 +52,15 @@ final class WorkerInfo
             $arr['pid'],
             $arr['name']
         );
+    }
+
+    public function pid(): int
+    {
+        return $this->pid;
+    }
+
+    public function name(): string
+    {
+        return $this->name;
     }
 }

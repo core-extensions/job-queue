@@ -130,73 +130,38 @@ final class FailInfo
         return $res;
     }
 
-    public function getFailedAt(): \DateTimeImmutable
+    public function failedAt(): \DateTimeImmutable
     {
         return $this->failedAt;
     }
 
-    public function setFailedAt(\DateTimeImmutable $failedAt): void
-    {
-        $this->failedAt = $failedAt;
-    }
-
-    public function getErrorCode(): int
+    public function errorCode(): int
     {
         return $this->errorCode;
     }
 
-    public function setErrorCode(int $errorCode): void
-    {
-        $this->errorCode = $errorCode;
-    }
-
-    public function getErrorMessage(): string
+    public function errorMessage(): string
     {
         return $this->errorMessage;
     }
 
-    public function setErrorMessage(string $errorMessage): void
-    {
-        $this->errorMessage = $errorMessage;
-    }
-
-    public function getErrorLine(): int
+    public function errorLine(): int
     {
         return $this->errorLine;
     }
 
-    public function setErrorLine(int $errorLine): void
-    {
-        $this->errorLine = $errorLine;
-    }
-
-    public function getErrorFile(): string
+    public function errorFile(): string
     {
         return $this->errorFile;
     }
 
-    public function setErrorFile(string $errorFile): void
-    {
-        $this->errorFile = $errorFile;
-    }
-
-    public function getPreviousErrorCode(): ?int
+    public function previousErrorCode(): ?int
     {
         return $this->previousErrorCode;
     }
 
-    public function setPreviousErrorCode(?int $previousErrorCode): void
-    {
-        $this->previousErrorCode = $previousErrorCode;
-    }
-
-    public function getPreviousErrorMessage(): ?string
+    public function previousErrorMessage(): ?string
     {
         return $this->previousErrorMessage;
-    }
-
-    public function setPreviousErrorMessage(?string $previousErrorMessage): void
-    {
-        $this->previousErrorMessage = $previousErrorMessage;
     }
 }

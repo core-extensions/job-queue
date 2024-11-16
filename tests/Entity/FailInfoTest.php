@@ -20,13 +20,13 @@ final class FailInfoTest extends TestCase
 
         $failInfo = FailInfo::fromThrowable($failedAt, $exception);
 
-        self::assertSame(100, $failInfo->getErrorCode());
-        self::assertSame('Test error', $failInfo->getErrorMessage());
-        self::assertSame($failedAt, $failInfo->getFailedAt());
-        self::assertSame($exception->getLine(), $failInfo->getErrorLine());
-        self::assertSame($exception->getFile(), $failInfo->getErrorFile());
-        self::assertNull($failInfo->getPreviousErrorCode());
-        self::assertNull($failInfo->getPreviousErrorMessage());
+        self::assertSame(100, $failInfo->errorCode());
+        self::assertSame('Test error', $failInfo->errorMessage());
+        self::assertSame($failedAt, $failInfo->failedAt());
+        self::assertSame($exception->getLine(), $failInfo->errorLine());
+        self::assertSame($exception->getFile(), $failInfo->errorFile());
+        self::assertNull($failInfo->previousErrorCode());
+        self::assertNull($failInfo->previousErrorMessage());
     }
 
     /**
@@ -40,10 +40,10 @@ final class FailInfoTest extends TestCase
 
         $failInfo = FailInfo::fromThrowable($failedAt, $exception);
 
-        self::assertSame(100, $failInfo->getErrorCode());
-        self::assertSame('Main error', $failInfo->getErrorMessage());
-        self::assertSame(200, $failInfo->getPreviousErrorCode());
-        self::assertSame('Previous error', $failInfo->getPreviousErrorMessage());
+        self::assertSame(100, $failInfo->errorCode());
+        self::assertSame('Main error', $failInfo->errorMessage());
+        self::assertSame(200, $failInfo->previousErrorCode());
+        self::assertSame('Previous error', $failInfo->previousErrorMessage());
     }
 
     /**
@@ -62,14 +62,14 @@ final class FailInfoTest extends TestCase
 
         self::assertEquals(
             Helpers::serializeDateTime($failedAt),
-            Helpers::serializeDateTime($reconstructedFailInfo->getFailedAt())
+            Helpers::serializeDateTime($reconstructedFailInfo->failedAt())
         );
-        self::assertSame($originalFailInfo->getErrorCode(), $reconstructedFailInfo->getErrorCode());
-        self::assertSame($originalFailInfo->getErrorMessage(), $reconstructedFailInfo->getErrorMessage());
-        self::assertSame($originalFailInfo->getErrorLine(), $reconstructedFailInfo->getErrorLine());
-        self::assertSame($originalFailInfo->getErrorFile(), $reconstructedFailInfo->getErrorFile());
-        self::assertSame($originalFailInfo->getPreviousErrorCode(), $reconstructedFailInfo->getPreviousErrorCode());
-        self::assertSame($originalFailInfo->getPreviousErrorMessage(), $reconstructedFailInfo->getPreviousErrorMessage());
+        self::assertSame($originalFailInfo->errorCode(), $reconstructedFailInfo->errorCode());
+        self::assertSame($originalFailInfo->errorMessage(), $reconstructedFailInfo->errorMessage());
+        self::assertSame($originalFailInfo->errorLine(), $reconstructedFailInfo->errorLine());
+        self::assertSame($originalFailInfo->errorFile(), $reconstructedFailInfo->errorFile());
+        self::assertSame($originalFailInfo->previousErrorCode(), $reconstructedFailInfo->previousErrorCode());
+        self::assertSame($originalFailInfo->previousErrorMessage(), $reconstructedFailInfo->previousErrorMessage());
     }
 
     /**
