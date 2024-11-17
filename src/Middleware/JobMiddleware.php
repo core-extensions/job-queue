@@ -14,6 +14,7 @@ use CoreExtensions\JobQueueBundle\Exception\JobRetryableExceptionInterface;
 use CoreExtensions\JobQueueBundle\Exception\JobUnboundException;
 use CoreExtensions\JobQueueBundle\JobCommandFactoryInterface;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
+use CoreExtensions\JobQueueBundle\JobConfiguration;
 use CoreExtensions\JobQueueBundle\Repository\JobRepository;
 use CoreExtensions\JobQueueBundle\Service\MessageIdResolver;
 use CoreExtensions\JobQueueBundle\Service\WorkerInfoResolver;
@@ -123,9 +124,14 @@ class JobMiddleware implements MiddlewareInterface
             $failedAt = new \DateTimeImmutable();
             $job->failed(FailInfo::fromThrowable($failedAt, $retryableException));
 
-            // if job sealed then the maxRetries is reached
-            // so should be re-dispatched if not sealed
-            if (null === $job->getSealedAt()) {
+            // retry handling
+            $maxRetries = $job->jobConfiguration()->maxRetries();
+            $isLimitReached = $maxRetries >= $job->getAttemptsCount();
+
+            if ($isLimitReached) {
+                $job->sealed($failedAt, JOB::SEALED_DUE_FAILED_BY_MAX_RETRIES_REACHED);
+            } else {
+                // re-dispatching + increment counter to new attempt
                 $repeatedEnvelope = $this->messageBus->dispatch($this->jobCommandFactory->createFromJob($job));
                 $job->dispatched(
                     DispatchInfo::fromValues(

@@ -268,6 +268,9 @@ class Job
 
         $this->recordDispatch($dispatchInfo);
         $this->setLastDispatchedAt($dispatchedAt);
+
+        // теперь метод становится нельзя вызывать повторно?
+        $this->incAttemptsCount();
     }
 
     /**
@@ -384,7 +387,6 @@ class Job
         );
         $this->assertJobNotSealed('resolved');
 
-        $this->incAttemptsCount();
         $this->setResolvedAt($resolvedAt);
         $this->setResult($result);
 
@@ -394,7 +396,6 @@ class Job
 
     /**
      * Вызывается в handler при каждом fail.
-     * (increments attempts count)
      */
     public function failed(FailInfo $errorInfo): void
     {
@@ -418,18 +419,14 @@ class Job
         );
         $this->assertJobNotSealed('failed');
 
-        // we should increment attempts count
-        $this->incAttemptsCount();
-
         $this->recordFailedAttempt($errorInfo);
 
-        // TODO: вынесем в middle?
-        $jobConfiguration = JobConfiguration::fromArray($this->getJobConfiguration());
-        $maxRetries = $jobConfiguration->getMaxRetries();
-
+        /*
+        $maxRetries = $this->jobConfiguration()->maxRetries();
         if ($this->getAttemptsCount() >= $maxRetries) {
             $this->sealed($failedAt, self::SEALED_DUE_FAILED_BY_MAX_RETRIES_REACHED);
         }
+        */
     }
 
     public function bindToChain(string $chainId, int $chainPosition): void
@@ -454,9 +451,9 @@ class Job
     }
 
     /**
-     * (специально private)
+     * ~~(специально private)~~
      */
-    private function sealed(\DateTimeImmutable $sealedAt, int $due): void
+    public function sealed(\DateTimeImmutable $sealedAt, int $due): void
     {
         $this->setSealedAt($sealedAt);
         $this->setSealedDue($due);
@@ -486,7 +483,6 @@ class Job
         $this->setErrors($errors);
     }
 
-
     private function incAttemptsCount(): void
     {
         $this->setAttemptsCount($this->getAttemptsCount() + 1);
@@ -508,6 +504,11 @@ class Job
         }
 
         return AcceptanceInfo::fromArray(end($this->acceptances));
+    }
+
+    public function jobConfiguration(): JobConfiguration
+    {
+        return JobConfiguration::fromArray($this->getJobConfiguration());
     }
 
     /**

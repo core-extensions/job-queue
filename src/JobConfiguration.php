@@ -73,8 +73,8 @@ final class JobConfiguration
     public function toArray(): array
     {
         return [
-            'maxRetries' => $this->maxRetries,
-            'timeout' => $this->timeout,
+            'maxRetries' => $this->maxRetries(),
+            'timeout' => $this->timeout(),
         ];
     }
 
@@ -96,12 +96,12 @@ final class JobConfiguration
         return $res;
     }
 
-    public function getMaxRetries(): int
+    public function maxRetries(): int
     {
         return $this->maxRetries;
     }
 
-    public function getTimeout(): int
+    public function timeout(): int
     {
         return $this->timeout;
     }

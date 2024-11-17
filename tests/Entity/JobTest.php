@@ -88,6 +88,9 @@ final class JobTest extends TestCase
 
         $this->assertEquals($dispatchedAt, $job->getLastDispatchedAt());
         $this->assertEquals('random_string_id', $job->lastDispatch()->messageId());
+
+        // dispatch should increment attempts count
+        $this->assertEquals(1, $job->getAttemptsCount());
     }
 
     /**
@@ -239,7 +242,7 @@ final class JobTest extends TestCase
         $job->configure(JobConfiguration::default()->withMaxRetries(3));
 
         // job must be dispatched and accepted before
-        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'some_string_id'));
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'message_id_1'));
         $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
 
         $failedAt1 = new \DateTimeImmutable();
@@ -248,6 +251,10 @@ final class JobTest extends TestCase
             new JobBusinessLogicException('Some description 1', 10, new \RuntimeException('Previous 1'))
         );
         $job->failed($error1);
+
+        // retry emulation
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'message_id_2'));
+        $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
 
         $failedAt2 = new \DateTimeImmutable();
         $error2 = FailInfo::fromThrowable(
@@ -275,9 +282,10 @@ final class JobTest extends TestCase
         );
         $job->failed($error3);
 
-        // sealed only after attempts not reached
+        /* moved to middleware
         $this->assertNotNull($job->getSealedAt());
         $this->assertEquals(Job::SEALED_DUE_FAILED_BY_MAX_RETRIES_REACHED, $job->getSealedDue());
+        */
     }
 
     // /**
@@ -299,12 +307,12 @@ final class JobTest extends TestCase
     {
         $job = $this->job;
 
-        // making sealed through failing
         $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
         $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
         $job->failed(
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
+        $job->sealed(new \DateTimeImmutable(), Job::SEALED_DUE_FAILED_TIMEOUT);
 
         // every action should throw exception if job is sealed
         $this->expectException(JobSealedInteractionException::class);
@@ -319,12 +327,12 @@ final class JobTest extends TestCase
     {
         $job = $this->job;
 
-        // making sealed through failing
         $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
         $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
         $job->failed(
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
+        $job->sealed(new \DateTimeImmutable(), Job::SEALED_DUE_FAILED_TIMEOUT);
 
         $this->expectException(JobSealedInteractionException::class);
         $this->expectExceptionMessageMatches('|accepted|is');
@@ -338,12 +346,12 @@ final class JobTest extends TestCase
     {
         $job = $this->job;
 
-        // making sealed through failing
         $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
         $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
         $job->failed(
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
+        $job->sealed(new \DateTimeImmutable(), Job::SEALED_DUE_FAILED_TIMEOUT);
 
         $this->expectException(JobSealedInteractionException::class);
         $this->expectExceptionMessageMatches('|revoked|is');
@@ -364,6 +372,7 @@ final class JobTest extends TestCase
         $job->failed(
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
+        $job->sealed(new \DateTimeImmutable(), Job::SEALED_DUE_FAILED_TIMEOUT);
 
         $this->expectException(JobSealedInteractionException::class);
         $this->expectExceptionMessageMatches('|revokeConfirmed|is');
@@ -379,11 +388,10 @@ final class JobTest extends TestCase
         // workflow stuff
         $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'string_id'));
         $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worked_1')));
-
-        // making sealed through failing
         $job->failed(
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
+        $job->sealed(new \DateTimeImmutable(), Job::SEALED_DUE_FAILED_TIMEOUT);
 
         $this->expectException(JobSealedInteractionException::class);
         $this->expectExceptionMessageMatches('|resolved|is');
@@ -399,11 +407,10 @@ final class JobTest extends TestCase
         // workflow stuff
         $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'string_id'));
         $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worked_1')));
-
-        // making sealed through failing
         $job->failed(
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
+        $job->sealed(new \DateTimeImmutable(), Job::SEALED_DUE_FAILED_TIMEOUT);
 
         $this->expectException(JobSealedInteractionException::class);
         $this->expectExceptionMessageMatches('|failed|is');
@@ -419,12 +426,12 @@ final class JobTest extends TestCase
     {
         $job = $this->job;
 
-        // making sealed through failing
         $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'string_id'));
         $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worked_1')));
         $job->failed(
             FailInfo::fromThrowable(new \DateTimeImmutable(), new JobTimeoutExceededException())
         );
+        $job->sealed(new \DateTimeImmutable(), Job::SEALED_DUE_FAILED_TIMEOUT);
 
         $this->expectException(JobSealedInteractionException::class);
         $this->expectExceptionMessageMatches('|bindToChain|is');
