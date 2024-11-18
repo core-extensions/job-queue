@@ -101,6 +101,7 @@ class JobMiddleware implements MiddlewareInterface
             // TODO: подумать где делать dispatched
             // $job->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($envelope));
             // print_r($stamp->getSenderAlias());
+            // TODO: хорошее место для incAttemptsCount?
         }
 
         /**
@@ -122,13 +123,11 @@ class JobMiddleware implements MiddlewareInterface
             $failedAt = new \DateTimeImmutable();
             $job->failed(FailInfo::fromThrowable($failedAt, $retryableException));
 
-            // retry handling
             $maxRetries = $job->jobConfiguration()->maxRetries();
-            $isLimitReached = $maxRetries >= $job->getAttemptsCount();
+            $isLimitReached = $job->getAttemptsCount() >= $maxRetries;
 
-            if ($isLimitReached) {
-                $job->sealed($failedAt, JOB::SEALED_DUE_FAILED_BY_MAX_RETRIES_REACHED);
-            } else {
+            // retry handling
+            if (!$isLimitReached) {
                 // re-dispatching + increment counter to new attempt
                 $repeatedEnvelope = $this->messageBus->dispatch($this->jobCommandFactory->createFromJob($job));
                 $job->dispatched(
@@ -137,13 +136,19 @@ class JobMiddleware implements MiddlewareInterface
                         $this->messageIdResolver->resolveMessageId($repeatedEnvelope)
                     )
                 );
+            } else {
+                $job->sealed(new \DateTimeImmutable(), JOB::SEALED_DUE_FAILED_BY_MAX_RETRIES_REACHED);
             }
         } catch (JobNonRetryableExceptionInterface $nonRetryableException) {
             $failedAt = new \DateTimeImmutable();
             $job->failed(FailInfo::fromThrowable($failedAt, $nonRetryableException));
+
+            $job->sealed(new \DateTimeImmutable(), JOB::SEALED_DUE_NON_RETRYABLE_ERROR_OCCURRED);
         } catch (\Throwable $tr) {
             $failedAt = new \DateTimeImmutable();
             $job->failed(FailInfo::fromThrowable($failedAt, $tr));
+
+            // TODO: что делать? повторять?
         }
 
         /**

@@ -11,6 +11,7 @@ use CoreExtensions\JobQueueBundle\JobCommandInterface;
 use CoreExtensions\JobQueueBundle\JobConfiguration;
 use CoreExtensions\JobQueueBundle\JobManager;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Messenger\Stamp\SentStamp;
 use Webmozart\Assert\Assert;
 
 /**
@@ -38,6 +39,7 @@ class Job
     public const SEALED_DUE_RESOLVED = 20;
     public const SEALED_DUE_FAILED_BY_MAX_RETRIES_REACHED = 30;
     public const SEALED_DUE_FAILED_TIMEOUT = 31;
+    public const SEALED_DUE_NON_RETRYABLE_ERROR_OCCURRED = 100;
 
     /**
      * @ORM\Id
@@ -242,6 +244,7 @@ class Job
 
     /**
      * Вызывается когда удалось опубликовать в bus.
+     * (нельзя вызывать повторно так как осуществляет increment попытки)
      * (refreshing denormalized field too)
      */
     public function dispatched(DispatchInfo $dispatchInfo): void
@@ -269,7 +272,7 @@ class Job
         $this->recordDispatch($dispatchInfo);
         $this->setLastDispatchedAt($dispatchedAt);
 
-        // теперь метод становится нельзя вызывать повторно?
+        // TODO: возможно стоит перенести в middleware и вызывать оттуда (SentStamp)
         $this->incAttemptsCount();
     }
 

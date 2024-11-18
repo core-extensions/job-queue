@@ -9,8 +9,10 @@ use CoreExtensions\JobQueueBundle\Entity\DispatchInfo;
 use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Entity\WorkerInfo;
 use CoreExtensions\JobQueueBundle\Exception\JobCommandOrphanException;
+use CoreExtensions\JobQueueBundle\Exception\JobRetryableExceptionInterface;
 use CoreExtensions\JobQueueBundle\Exception\JobRevokedException;
 use CoreExtensions\JobQueueBundle\Exception\JobUnboundException;
+use CoreExtensions\JobQueueBundle\JobConfiguration;
 use CoreExtensions\JobQueueBundle\JobMiddleware;
 use CoreExtensions\JobQueueBundle\Repository\JobRepository;
 use CoreExtensions\JobQueueBundle\Service\MessageIdResolver;
@@ -236,30 +238,78 @@ final class JobMiddlewareTest extends TestCase
     /**
      * @test
      */
-    public function it_redispatch_if_retryable_exception_thrown(): void
+    public function it_redispatch_if_retryable_exception_thrown_and_max_retries_is_not_reached(): void
     {
         $job = $this->job;
         $jobMiddleware = $this->jobMiddleware;
 
+        // twice
+        $job->configure(JobConfiguration::default()->withMaxRetries(2));
+
         $jobCommand = $this->jobCommandFactory->createFromJob($job);
         $envelope = new Envelope(
             $jobCommand,
-            [new TransportMessageIdStamp('long_string_id'), new ReceivedStamp('transport_1')]
+            [new TransportMessageIdStamp('long_string_id_1'), new ReceivedStamp('transport_1')]
         );
+        $workerInfo1 = WorkerInfo::fromValues(1, 'worker_1');
 
         $this->jobRepository->method('find')->willReturn($job);
-        $this->workerInfoResolver->method('resolveWorkerInfo')->willReturn(WorkerInfo::fromValues(1, 'worker_1'));
+        $this->workerInfoResolver->method('resolveWorkerInfo')->willReturn($workerInfo1);
 
         // do workflow stuff
-        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id_1'));
 
+        // not accepted, no errors and result before handle
         $this->assertNull($job->getLastAcceptedAt());
+        $this->assertNull($job->getResult());
+        $this->assertNull($job->getErrors());
 
-        // emulate pre-call
-        $this->stackNextMiddleware->method('handle')->willReturn($envelope); // due envelope is final
+        $retryableException = new class('retryable_exception_message') extends \Exception implements
+            JobRetryableExceptionInterface {
+        };
+
+        // should dispatch repeated envelope
+        $repeatedEnvelope = new Envelope(
+            $jobCommand,
+            [new TransportMessageIdStamp('long_string_id_2'), new ReceivedStamp('transport_1')]
+        );
+        $this->messageBus->expects($this->once())->method('dispatch')->willReturn($repeatedEnvelope);
+
+        // emulate retryable exception thrown
+        $this->stackNextMiddleware->method('handle')->willThrowException($retryableException);
+
         $jobMiddleware->handle($envelope, $this->stack);
 
+        // it accepts once (ReceivedStamp)
         $this->assertNotNull($job->getLastAcceptedAt());
+        $this->assertEquals($workerInfo1, $job->lastAcceptance()->workerInfo());
+        $this->assertCount(1, $job->getAcceptances());
+
+        // it records fails
+        $this->assertCount(1, $job->getErrors());
+        $this->assertEquals('retryable_exception_message', $job->getErrors()[0]['errorMessage']);
+
+        // it didn't seal (max retries is not reached yet)
+        $this->assertNull($job->getSealedAt());
+
+        // it redispatched
+        $this->assertCount(2, $job->getDispatches());
+    }
+
+    /**
+     * @test
+     */
+    public function it_seals_non_retryable_at_once(): void
+    {
+        $this->assertEquals('TODO', 'TODO');
+    }
+
+    /**
+     * @test
+     */
+    public function it_seals_retryable_after_max_retries_reached(): void
+    {
+        $this->assertEquals('TODO', 'TODO');
     }
 
     /**

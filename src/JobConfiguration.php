@@ -41,16 +41,18 @@ final class JobConfiguration
 
     public function withMaxRetries(int $maxRetries): self
     {
-        $this->maxRetries = $maxRetries;
+        $res = clone $this;
+        $res->maxRetries = $maxRetries;
 
-        return $this;
+        return $res;
     }
 
     public function withTimeout(int $timeout): self
     {
-        $this->timeout = $timeout;
+        $res = clone $this;
+        $res->timeout = $timeout;
 
-        return $this;
+        return $res;
     }
 
     /**
