@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueueBundle\Tests\Middleware;
+namespace CoreExtensions\JobQueueBundle\Tests;
 
 use CoreExtensions\JobQueueBundle\Entity\AcceptanceInfo;
 use CoreExtensions\JobQueueBundle\Entity\DispatchInfo;
@@ -11,12 +11,10 @@ use CoreExtensions\JobQueueBundle\Entity\WorkerInfo;
 use CoreExtensions\JobQueueBundle\Exception\JobCommandOrphanException;
 use CoreExtensions\JobQueueBundle\Exception\JobRevokedException;
 use CoreExtensions\JobQueueBundle\Exception\JobUnboundException;
-use CoreExtensions\JobQueueBundle\Middleware\JobMiddleware;
+use CoreExtensions\JobQueueBundle\JobMiddleware;
 use CoreExtensions\JobQueueBundle\Repository\JobRepository;
 use CoreExtensions\JobQueueBundle\Service\MessageIdResolver;
 use CoreExtensions\JobQueueBundle\Service\WorkerInfoResolver;
-use CoreExtensions\JobQueueBundle\Tests\TestingJobCommand;
-use CoreExtensions\JobQueueBundle\Tests\TestingJobCommandFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Envelope;

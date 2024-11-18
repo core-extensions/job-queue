@@ -19,7 +19,7 @@ final class JobTimeoutExceededException extends \RuntimeException implements Job
             sprintf(
                 'Job "%s" failed due to timeout exceed (timeout %d sec))',
                 $job->getJobId(),
-                $job->getJobConfiguration()->getTimeout(),
+                $job->jobConfiguration()->timeout(),
             )
         );
         $res->jobId = $job->getJobId();

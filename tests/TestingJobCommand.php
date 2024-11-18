@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace CoreExtensions\JobQueueBundle\Tests;
 
 use CoreExtensions\JobQueueBundle\Entity\Job;
-use CoreExtensions\JobQueueBundle\Helpers;
+use CoreExtensions\JobQueueBundle\Serializer;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
 use Webmozart\Assert\Assert;
 
@@ -60,7 +60,7 @@ final class TestingJobCommand implements JobCommandInterface
      */
     public static function fromArray(array $arr): self
     {
-        $date = Helpers::unserializeDateTime($arr['date']);
+        $date = Serializer::unserializeDateTime($arr['date']);
         Assert::notNull($date, sprintf('Invalid param "%s" in "%s"', 'date', __METHOD__));
 
         return self::fromValues($arr['int'], $arr['string'], $date, $arr['array']);
@@ -74,7 +74,7 @@ final class TestingJobCommand implements JobCommandInterface
         return [
             'int' => $this->getInt(),
             'string' => $this->getString(),
-            'date' => Helpers::serializeDateTime($this->getDate()),
+            'date' => Serializer::serializeDateTime($this->getDate()),
             'array' => $this->getArray(),
         ];
     }

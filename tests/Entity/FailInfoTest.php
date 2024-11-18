@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace CoreExtensions\JobQueueBundle\Tests\Entity;
 
 use CoreExtensions\JobQueueBundle\Entity\FailInfo;
-use CoreExtensions\JobQueueBundle\Helpers;
+use CoreExtensions\JobQueueBundle\Serializer;
 use PHPUnit\Framework\TestCase;
 
 final class FailInfoTest extends TestCase
@@ -61,8 +61,8 @@ final class FailInfoTest extends TestCase
         $reconstructedFailInfo = FailInfo::fromArray($array);
 
         self::assertEquals(
-            Helpers::serializeDateTime($failedAt),
-            Helpers::serializeDateTime($reconstructedFailInfo->failedAt())
+            Serializer::serializeDateTime($failedAt),
+            Serializer::serializeDateTime($reconstructedFailInfo->failedAt())
         );
         self::assertSame($originalFailInfo->errorCode(), $reconstructedFailInfo->errorCode());
         self::assertSame($originalFailInfo->errorMessage(), $reconstructedFailInfo->errorMessage());
@@ -80,7 +80,7 @@ final class FailInfoTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
 
         FailInfo::fromArray([
-            'failedAt' => Helpers::serializeDateTime(new \DateTimeImmutable()),
+            'failedAt' => Serializer::serializeDateTime(new \DateTimeImmutable()),
             'errorCode' => -1,
             'errorMessage' => 'Test',
             'errorLine' => 1,
@@ -98,7 +98,7 @@ final class FailInfoTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
 
         FailInfo::fromArray([
-            'failedAt' => Helpers::serializeDateTime(new \DateTimeImmutable()),
+            'failedAt' => Serializer::serializeDateTime(new \DateTimeImmutable()),
             'errorCode' => 1,
             'errorMessage' => 'Test',
             'errorLine' => 0,

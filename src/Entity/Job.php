@@ -6,7 +6,7 @@ namespace CoreExtensions\JobQueueBundle\Entity;
 
 use CoreExtensions\JobQueueBundle\Exception\JobRevokedException;
 use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
-use CoreExtensions\JobQueueBundle\Helpers;
+use CoreExtensions\JobQueueBundle\Serializer;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
 use CoreExtensions\JobQueueBundle\JobConfiguration;
 use CoreExtensions\JobQueueBundle\JobManager;
@@ -73,7 +73,7 @@ class Job
     /**
      * Массив из DispatchInfo, где ключи ($attemptsCount - 1) (нумерация с нуля).
      *
-     * @var ?array{dispatchedAt: string, messageId: string}
+     * @var ?array<int, array{dispatchedAt: string, messageId: string}>
      *
      * @see DispatchInfo[]
      *
@@ -84,7 +84,7 @@ class Job
     /**
      * Массив из AcceptanceInfo, где ключи ($attemptsCount - 1) (нумерация с нуля).
      *
-     * @var ?array{accepteddAt: string, worker: WorkerInfo}
+     * @var ?array<int, array{acceptedAt: string, workerInfo: array{pid: integer, name: string}}>
      *
      * @see AcceptanceInfo[]
      *
@@ -255,8 +255,8 @@ class Job
             sprintf(
                 'Job "%s" cannot be dispatched "%s" earlier than created "%s" in "%s"',
                 $this->getJobId(),
-                Helpers::serializeDateTime($dispatchedAt),
-                Helpers::serializeDateTime($this->getLastDispatchedAt()),
+                Serializer::serializeDateTime($dispatchedAt),
+                Serializer::serializeDateTime($this->getLastDispatchedAt()),
                 __METHOD__
             )
         );
@@ -293,8 +293,8 @@ class Job
             sprintf(
                 'Job "%s" cannot be accepted "%s" earlier than dispatched "%s" in "%s"',
                 $this->getJobId(),
-                Helpers::serializeDateTime($acceptedAt),
-                Helpers::serializeDateTime($this->getLastDispatchedAt()),
+                Serializer::serializeDateTime($acceptedAt),
+                Serializer::serializeDateTime($this->getLastDispatchedAt()),
                 __METHOD__
             )
         );
@@ -315,8 +315,8 @@ class Job
             sprintf(
                 'Job "%s" cannot be revoked "%s" earlier than created "%s" in "%s"',
                 $this->getJobId(),
-                Helpers::serializeDateTime($revokedAt),
-                Helpers::serializeDateTime($this->getCreatedAt()),
+                Serializer::serializeDateTime($revokedAt),
+                Serializer::serializeDateTime($this->getCreatedAt()),
                 __METHOD__
             )
         );
@@ -345,8 +345,8 @@ class Job
             sprintf(
                 'Job "%s" revoking cannot be confirmed "%s" earlier than revoked "%s" in "%s"',
                 $this->getJobId(),
-                Helpers::serializeDateTime($revokeConfirmedAt),
-                Helpers::serializeDateTime($revokedAt),
+                Serializer::serializeDateTime($revokeConfirmedAt),
+                Serializer::serializeDateTime($revokedAt),
                 __METHOD__
             )
         );
@@ -376,8 +376,8 @@ class Job
             sprintf(
                 'Job "%s" cannot be resolved "%s" earlier than accepted "%s" in "%s"',
                 $this->getJobId(),
-                Helpers::serializeDateTime($acceptedAt),
-                Helpers::serializeDateTime($this->getLastDispatchedAt()),
+                Serializer::serializeDateTime($acceptedAt),
+                Serializer::serializeDateTime($this->getLastDispatchedAt()),
                 __METHOD__
             )
         );
@@ -412,15 +412,14 @@ class Job
             sprintf(
                 'Job "%s" cannot be failed "%s" earlier than accepted "%s" in "%s"',
                 $this->getJobId(),
-                Helpers::serializeDateTime($acceptedAt),
-                Helpers::serializeDateTime($this->getLastDispatchedAt()),
+                Serializer::serializeDateTime($acceptedAt),
+                Serializer::serializeDateTime($this->getLastDispatchedAt()),
                 __METHOD__
             )
         );
         $this->assertJobNotSealed('failed');
 
         $this->recordFailedAttempt($errorInfo);
-
         /*
         $maxRetries = $this->jobConfiguration()->maxRetries();
         if ($this->getAttemptsCount() >= $maxRetries) {
@@ -745,21 +744,33 @@ class Job
         $this->lastAcceptedAt = $lastAcceptedAt;
     }
 
+    /**
+     * @return ?array<int, array{dispatchedAt: string, messageId: string}>
+     */
     public function getDispatches(): ?array
     {
         return $this->dispatches;
     }
 
+    /**
+     * @param ?array<int, array{dispatchedAt: string, messageId: string}> $dispatches
+     */
     public function setDispatches(?array $dispatches): void
     {
         $this->dispatches = $dispatches;
     }
 
+    /**
+     * @return ?array<int, array{acceptedAt: string, workerInfo: array{pid: integer, name: string}}>
+     */
     public function getAcceptances(): ?array
     {
         return $this->acceptances;
     }
 
+    /**
+     * @param ?array<int, array{acceptedAt: string, workerInfo: array{pid: integer, name: string}}> $acceptances
+     */
     public function setAcceptances(?array $acceptances): void
     {
         $this->acceptances = $acceptances;

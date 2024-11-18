@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle\Entity;
 
-use CoreExtensions\JobQueueBundle\Helpers;
+use CoreExtensions\JobQueueBundle\Serializer;
 use Webmozart\Assert\Assert;
 
 final class FailInfo
@@ -55,7 +55,7 @@ final class FailInfo
         );
 
         return self::fromValues(
-            Helpers::unserializeDateTime($arr['failedAt']),
+            Serializer::unserializeDateTime($arr['failedAt']),
             $arr['errorCode'],
             $arr['errorMessage'],
             $arr['errorLine'],
@@ -71,7 +71,7 @@ final class FailInfo
     public function toArray(): array
     {
         return [
-            'failedAt' => Helpers::serializeDateTime($this->failedAt),
+            'failedAt' => Serializer::serializeDateTime($this->failedAt),
             'errorCode' => $this->errorCode,
             'errorMessage' => $this->errorMessage,
             'errorLine' => $this->errorLine,

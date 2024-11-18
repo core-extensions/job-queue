@@ -12,7 +12,7 @@ use CoreExtensions\JobQueueBundle\Entity\WorkerInfo;
 use CoreExtensions\JobQueueBundle\Exception\JobBusinessLogicException;
 use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
 use CoreExtensions\JobQueueBundle\Exception\JobTimeoutExceededException;
-use CoreExtensions\JobQueueBundle\Helpers;
+use CoreExtensions\JobQueueBundle\Serializer;
 use CoreExtensions\JobQueueBundle\JobConfiguration;
 use CoreExtensions\JobQueueBundle\Tests\TestingJobCommand;
 use PHPUnit\Framework\TestCase;
@@ -224,7 +224,7 @@ final class JobTest extends TestCase
 
         $this->assertNull($job->getResolvedAt());
         $this->assertNull($job->getResult());
-        $this->assertEquals(Helpers::serializeDateTime($failedAt), $job->getErrors()[0]['failedAt']);
+        $this->assertEquals(Serializer::serializeDateTime($failedAt), $job->getErrors()[0]['failedAt']);
         $this->assertEquals(1, $job->getAttemptsCount());
         $this->assertEquals($failInfo->toArray(), $job->getErrors()[0]);
     }

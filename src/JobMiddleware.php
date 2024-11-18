@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CoreExtensions\JobQueueBundle\Middleware;
+namespace CoreExtensions\JobQueueBundle;
 
 use CoreExtensions\JobQueueBundle\Entity\AcceptanceInfo;
 use CoreExtensions\JobQueueBundle\Entity\DispatchInfo;
@@ -12,9 +12,6 @@ use CoreExtensions\JobQueueBundle\Exception\JobCommandOrphanException;
 use CoreExtensions\JobQueueBundle\Exception\JobNonRetryableExceptionInterface;
 use CoreExtensions\JobQueueBundle\Exception\JobRetryableExceptionInterface;
 use CoreExtensions\JobQueueBundle\Exception\JobUnboundException;
-use CoreExtensions\JobQueueBundle\JobCommandFactoryInterface;
-use CoreExtensions\JobQueueBundle\JobCommandInterface;
-use CoreExtensions\JobQueueBundle\JobConfiguration;
 use CoreExtensions\JobQueueBundle\Repository\JobRepository;
 use CoreExtensions\JobQueueBundle\Service\MessageIdResolver;
 use CoreExtensions\JobQueueBundle\Service\WorkerInfoResolver;
@@ -103,6 +100,7 @@ class JobMiddleware implements MiddlewareInterface
         if (null === $job->getLastDispatchedAt() && null !== ($stamp = $envelope->last(SentStamp::class))) {
             // TODO: подумать где делать dispatched
             // $job->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($envelope));
+            // print_r($stamp->getSenderAlias());
         }
 
         /**

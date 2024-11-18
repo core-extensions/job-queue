@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle\Entity;
 
-use CoreExtensions\JobQueueBundle\Helpers;
+use CoreExtensions\JobQueueBundle\Serializer;
 use Webmozart\Assert\Assert;
 
 final class DispatchInfo
@@ -27,7 +27,7 @@ final class DispatchInfo
         Assert::keyExists($arr, 'dispatchedAt', sprintf('No param "%s" in "%s"', 'dispatchedAt', __METHOD__));
         Assert::keyExists($arr, 'messageId', sprintf('No param "%s" in "%s"', 'messageId', __METHOD__));
 
-        return self::fromValues(Helpers::unserializeDateTime($arr['dispatchedAt']), $arr['messageId']);
+        return self::fromValues(Serializer::unserializeDateTime($arr['dispatchedAt']), $arr['messageId']);
     }
 
     /**
@@ -36,7 +36,7 @@ final class DispatchInfo
     public function toArray(): array
     {
         return [
-            'dispatchedAt' => Helpers::serializeDateTime($this->dispatchedAt),
+            'dispatchedAt' => Serializer::serializeDateTime($this->dispatchedAt),
             'messageId' => $this->messageId,
         ];
     }

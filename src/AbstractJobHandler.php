@@ -10,6 +10,9 @@ use Symfony\Component\Messenger\Handler\MessageHandlerInterface;
 abstract class AbstractJobHandler implements MessageHandlerInterface
 {
     // TODO: или интерфейс, результат важно в виде массива
+    /**
+     * @return non-empty-array<string, mixed>
+     */
     abstract public function __invoke(JobCommandInterface $jobCommand): array;
 
     // TODO: метод для поставновки результата если его нельхя получить в middleware

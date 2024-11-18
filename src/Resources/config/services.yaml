@@ -4,7 +4,7 @@ services:
     arguments:
       $registry: @doctrine
   core-extensions.job_queue.job_middleware:
-    class: CoreExtensions\JobQueueBundle\Middleware\JobMiddleware
+    class: CoreExtensions\JobQueueBundle\JobMiddleware
     arguments:
       $jobRepository: @core-extensions.job_queue.job_repository
       $entityManager: @doctrine.orm.default_entity_manager

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace CoreExtensions\JobQueueBundle\Exception;
 
 use CoreExtensions\JobQueueBundle\Entity\Job;
-use CoreExtensions\JobQueueBundle\Helpers;
+use CoreExtensions\JobQueueBundle\Serializer;
 
 /**
  * throws when interaction with revoked job occurred
@@ -20,7 +20,7 @@ final class JobRevokedException extends \RuntimeException implements JobNonRetry
             sprintf(
                 'Job "%s" was already revoked at "%s" (for %d))',
                 $job->getJobId(),
-                Helpers::serializeDateTime($job->getRevokedAt()),
+                Serializer::serializeDateTime($job->getRevokedAt()),
                 $job->getRevokedFor(),
             )
         );

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle;
 
-final class Helpers
+final class Serializer
 {
     /**
      * Дата и время с часовым поясом и микросекундами.
