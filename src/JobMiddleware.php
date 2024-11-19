@@ -119,9 +119,14 @@ class JobMiddleware implements MiddlewareInterface
         // call next middlewares and handler
         try {
             $envelope = $stack->next()->handle($envelope, $stack);
-        } catch (JobRetryableExceptionInterface $retryableException) {
+        } catch (JobNonRetryableExceptionInterface $nonRetryableException) {
             $failedAt = new \DateTimeImmutable();
-            $job->failed(FailInfo::fromThrowable($failedAt, $retryableException));
+            $job->failed(FailInfo::fromThrowable($failedAt, $nonRetryableException));
+
+            $job->sealed(new \DateTimeImmutable(), JOB::SEALED_DUE_NON_RETRYABLE_ERROR_OCCURRED);
+        } catch (JobRetryableExceptionInterface|\Throwable $tr) {
+            $failedAt = new \DateTimeImmutable();
+            $job->failed(FailInfo::fromThrowable($failedAt, $tr));
 
             $maxRetries = $job->jobConfiguration()->maxRetries();
             $isLimitReached = $job->getAttemptsCount() >= $maxRetries;
@@ -139,16 +144,6 @@ class JobMiddleware implements MiddlewareInterface
             } else {
                 $job->sealed(new \DateTimeImmutable(), JOB::SEALED_DUE_FAILED_BY_MAX_RETRIES_REACHED);
             }
-        } catch (JobNonRetryableExceptionInterface $nonRetryableException) {
-            $failedAt = new \DateTimeImmutable();
-            $job->failed(FailInfo::fromThrowable($failedAt, $nonRetryableException));
-
-            $job->sealed(new \DateTimeImmutable(), JOB::SEALED_DUE_NON_RETRYABLE_ERROR_OCCURRED);
-        } catch (\Throwable $tr) {
-            $failedAt = new \DateTimeImmutable();
-            $job->failed(FailInfo::fromThrowable($failedAt, $tr));
-
-            // TODO: что делать? повторять?
         }
 
         /**

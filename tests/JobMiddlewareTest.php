@@ -239,7 +239,7 @@ final class JobMiddlewareTest extends TestCase
     /**
      * @test
      */
-    public function it_redispatch_if_retryable_and_seals_after_max_retries_reached(): void
+    public function it_redispatch_and_seals_after_max_retries_reached_if_retryable_or_base_exception_thrown(): void
     {
         $job = $this->job;
         $jobMiddleware = $this->jobMiddleware;
@@ -278,8 +278,7 @@ final class JobMiddlewareTest extends TestCase
 
         // first call
         $this->stackNextMiddleware->method('handle')->willThrowException(
-            new class('retryable_exception_message') extends \Exception implements
-                JobRetryableExceptionInterface {
+            new class('retryable_exception_message') extends \Exception implements JobRetryableExceptionInterface {
             }
         );
         $jobMiddleware->handle($envelope, $this->stack);
@@ -306,6 +305,12 @@ final class JobMiddlewareTest extends TestCase
             $job->getErrors()
         ); // errors count less than attempts count because new attempt already started
         $this->assertNull($job->getSealedAt());
+
+        // it retries if base exception thrown
+        $this->stackNextMiddleware->method('handle')->willThrowException(
+            new class('retryable_exception_message') extends \Exception {
+            }
+        );
 
         // second retry
         $jobMiddleware->handle($repeatedEnvelope, $this->stack);
