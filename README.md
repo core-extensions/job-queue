@@ -1,43 +1,36 @@
 ## Job-queue
 
-### Требования
+### Requirements
 
-* Одну task выполняет в одно и то же время только 1 worker. В rabbit это решается через acknowledgment + basic_qos.
-* Масштабируемость (добавлять workers)
-* ~~Возможность назначать задачам группы, указывая что все задачи данной группы должны идти друг за другом в порядке fifo (возможно это легко достижимо посредством  помещения их в определенные channels) ~~ - **изучить***
-  вот примеры
-- https://laravel.com/docs/11.x/queues#job-chaining и https://laravel.com/docs/11.x/queues#chains-and-batches
-- https://docs.celeryq.dev/en/stable/userguide/canvas.html#chains
-- https://github.com/path/android-priority-jobqueue (group)
+* Scalability: Possible to add additional workers to pool (for some group of tasks too)
+* Scalability: Possible to add additional workers
+* Scalability: One task can be executed only by one worker at the same time (see acknowledgment + basic_qos)
+* Flexibility: Ability to group jobs to chains that will be run sequentially
+  examples:
+    - https://laravel.com/docs/11.x/queues#job-chaining и https://laravel.com/docs/11.x/queues#chains-and-batches
+    - https://docs.celeryq.dev/en/stable/userguide/canvas.html#chains
+    - https://github.com/path/android-priority-jobqueue (group)
+* Flexibility: Ability to revoke handling job (in long-running iterable handlers too)
+* Flexibility: Ability to view errors of handling and react to them
+* Stability: Ability to re-run jobs
 
-* Возможность задавать больше workers на tasks определенной группы (здесь тоже группа будет нужна ну или другой какой-то идентификатор)
-* Возможность как то влиять на задачи (хотя бы отменять), (возможно менять приоритет - хотя наверно проще будет всегда отменить и создать заново)
-* Возможность как-то задавать реакцию на возникающие ошибки. Так как у каждого task будет свой TaskHandler - возможно бы будем просто решать эту проблему в нем.
-* Логирование процесса обработки в самой задаче? => **нужна таблица?**
-* Надежность => Возможность re-run в случае падения rabbit**нужна таблица?**  Более частый пример: после деплоя, когда Job по какой-то причине изменили
+### Wishes
 
-### Пожелания
-
-* возможность указать номер задачи в группе?
-* мониторинг и логирование - UI  => **нужна таблица?**
-* composer пакет, для легкого импорта в minzdrav и поддержки единой кодовой базы
-* для UI - как? npm?
-* поискать готовые решения Task Queues
+* composer package
+* VueJs UI
 
 ### TODO
 
-* подумать что делать с текущими job, в случае если было deploy где job поменяли? отмена + rerun? тогда нужен такой статус
-* описать текущие таски
-* возможно можно обойтись и без таблицы.
-* подумать об использовании php-enqueue/laravel-queue (task queue) вместо symfnoy/messenger (message bus)
-* jobId VO
+* re-run jobs due deployment stuffs (for example after compatibility-breaking modifications of some JobCommand)
 
-### Решение
+### Solution
 
- * Job - doctrine entity
- * JobCommand - сообщение отправляемое в bus и обрабатываемое handlers
+* Bus - symfony/messenger bus
+* Job - stored in DB (ORM) entity
+* JobCommand - DTO that represents Job and will be used for transferring over Bus
+* JobManager - service that will be used for enqueue Jobs or chain of Jobs
 
-### Конфигурирование
+### Configuration
 
 https://davegebler.com/post/php/how-to-create-a-symfony-5-bundle
 
@@ -47,14 +40,17 @@ framework:
   messenger:
     buses:
       messenger.bus.default:
-        middleware: 
+        middleware:
           - @core-extensions.job_queue.job_middleware
 
 ## ????
 job_queue:
-    jobs_table: "orm_jobs"
+  jobs_table: "orm_jobs"
 ```
 
-Команда для запуска worker:
+Shell command to run consumer:
 
+```bash
 ExecStart=php bin/console messenger:consume async --time-limit=3600 --id=worker_1
+```
+
