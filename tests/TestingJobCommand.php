@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace CoreExtensions\JobQueueBundle\Tests;
 
 use CoreExtensions\JobQueueBundle\Entity\Job;
-use CoreExtensions\JobQueueBundle\Serializer;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
+use CoreExtensions\JobQueueBundle\Serializer;
 use Webmozart\Assert\Assert;
 
 final class TestingJobCommand implements JobCommandInterface

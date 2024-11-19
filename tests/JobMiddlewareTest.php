@@ -278,7 +278,7 @@ final class JobMiddlewareTest extends TestCase
 
         // first call
         $this->stackNextMiddleware->method('handle')->willThrowException(
-            new class('retryable_exception_message') extends \Exception implements JobRetryableExceptionInterface {
+            new class ('retryable_exception_message') extends \Exception implements JobRetryableExceptionInterface {
             }
         );
         $jobMiddleware->handle($envelope, $this->stack);
@@ -308,7 +308,7 @@ final class JobMiddlewareTest extends TestCase
 
         // it retries if base exception thrown
         $this->stackNextMiddleware->method('handle')->willThrowException(
-            new class('retryable_exception_message') extends \Exception {
+            new class ('retryable_exception_message') extends \Exception {
             }
         );
 
@@ -365,7 +365,7 @@ final class JobMiddlewareTest extends TestCase
         $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id_1'));
 
         $this->stackNextMiddleware->method('handle')->willThrowException(
-            new class('non_retryable_exception_message') extends \Exception implements
+            new class ('non_retryable_exception_message') extends \Exception implements
                 JobNonRetryableExceptionInterface {
             }
         );
@@ -384,8 +384,6 @@ final class JobMiddlewareTest extends TestCase
     }
 
     /**
-     * TODO: подумать нужно ли это
-     *
      * @test
      */
     public function it_persist_and_flush_job(): void

@@ -12,7 +12,7 @@ class WorkerInfoResolver
     public function resolveWorkerInfo(ReceivedStamp $receivedStamp): WorkerInfo
     {
         // $processInfo = shell_exec("ps -p $pid -o args=");
-        // TODO: worker name
+        // TODO: worker name can bee resolved bu process name?
         return WorkerInfo::fromValues(getmypid(), $receivedStamp->getTransportName());
     }
 }

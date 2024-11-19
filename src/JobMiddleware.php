@@ -99,9 +99,9 @@ class JobMiddleware implements MiddlewareInterface
          */
         if (null === $job->getLastDispatchedAt() && null !== ($stamp = $envelope->last(SentStamp::class))) {
             // TODO: подумать где делать dispatched
+            // TODO: хорошее место для incAttemptsCount?
             // $job->dispatched(new \DateTimeImmutable(), $this->messageIdResolver->resolveMessageId($envelope));
             // print_r($stamp->getSenderAlias());
-            // TODO: хорошее место для incAttemptsCount?
         }
 
         /**
@@ -169,7 +169,6 @@ class JobMiddleware implements MiddlewareInterface
             }
         }
 
-        // TODO: подумать нужно ли это
         $this->entityManager->persist($job);
         $this->entityManager->flush();
 

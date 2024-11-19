@@ -6,21 +6,14 @@ namespace CoreExtensions\JobQueueBundle\Entity;
 
 use CoreExtensions\JobQueueBundle\Exception\JobRevokedException;
 use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
-use CoreExtensions\JobQueueBundle\Serializer;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
 use CoreExtensions\JobQueueBundle\JobConfiguration;
 use CoreExtensions\JobQueueBundle\JobManager;
+use CoreExtensions\JobQueueBundle\Serializer;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Messenger\Stamp\SentStamp;
 use Webmozart\Assert\Assert;
 
 /**
- * // TODO: doctrine entity - точно нужно чтобы было doctrine entity?
- * // TODO: optimistic locking чтобы с UI не могли работать со старыми данными
- * // TODO: из-за retryable время надо фиксировать в множественном виде следующие поля:
- * //  - $dispatchedAt, $dispatchedMessageId
- * //  - $acceptedAt, $acceptedWorkerInfo
- *
  * @ORM\Entity(repositoryClass="CoreExtensions\JobQueueBundle\Repository\JobRepository")
  * @ORM\Table(name="orm_jobs", schema="jobs"))
  */
@@ -225,8 +218,7 @@ class Job
 
     /**
      * Инициализирует Job и делает JobMessage bound к нему.
-     * TODO: может быть дублирование JobCommand, если jobId не будет меняться @see JobManager::enqueueChain(),
-     * TODO: возможно лучше сделать его генерацию внутренней, через factory (для тестов)
+     * (может быть дублирование JobCommand, если jobId не будет меняться @see JobManager::enqueueChain()),
      */
     public static function initNew(string $jobId, JobCommandInterface $jobMessage, \DateTimeImmutable $createdAt): self
     {
@@ -331,8 +323,7 @@ class Job
 
     /**
      * Вызывается когда handler получил знание об отмене.
-     * (TODO: будет понятно после создания handler)
-     * (TODO: в итерациях?)
+     * (возможно нужно будет вызывать в catch JobE)
      */
     public function revokeConfirmed(\DateTimeImmutable $revokeConfirmedAt): void
     {

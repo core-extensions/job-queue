@@ -12,13 +12,11 @@ use CoreExtensions\JobQueueBundle\Entity\WorkerInfo;
 use CoreExtensions\JobQueueBundle\Exception\JobBusinessLogicException;
 use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
 use CoreExtensions\JobQueueBundle\Exception\JobTimeoutExceededException;
-use CoreExtensions\JobQueueBundle\Serializer;
 use CoreExtensions\JobQueueBundle\JobConfiguration;
+use CoreExtensions\JobQueueBundle\Serializer;
 use CoreExtensions\JobQueueBundle\Tests\TestingJobCommand;
 use PHPUnit\Framework\TestCase;
 
-// TODO: throws_exceptions tests
-// TODO: chain workflow tests
 final class JobTest extends TestCase
 {
     private Job $job;
