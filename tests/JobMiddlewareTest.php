@@ -238,31 +238,32 @@ final class JobMiddlewareTest extends TestCase
     /**
      * @test
      */
-    public function it_redispatch_if_retryable_exception_thrown_and_max_retries_is_not_reached(): void
+    public function it_redispatch_if_retryable_and_seals_after_max_retries_reached(): void
     {
         $job = $this->job;
         $jobMiddleware = $this->jobMiddleware;
+        $workerInfo = WorkerInfo::fromValues(1, 'worker_1');
 
-        // twice
-        $job->configure(JobConfiguration::default()->withMaxRetries(2));
+        // retry 3 times
+        $job->configure(JobConfiguration::default()->withMaxRetries(4));
 
         $jobCommand = $this->jobCommandFactory->createFromJob($job);
         $envelope = new Envelope(
             $jobCommand,
             [new TransportMessageIdStamp('long_string_id_1'), new ReceivedStamp('transport_1')]
         );
-        $workerInfo1 = WorkerInfo::fromValues(1, 'worker_1');
 
         $this->jobRepository->method('find')->willReturn($job);
-        $this->workerInfoResolver->method('resolveWorkerInfo')->willReturn($workerInfo1);
+        $this->workerInfoResolver->method('resolveWorkerInfo')->willReturn($workerInfo);
 
         // do workflow stuff
         $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id_1'));
 
-        // not accepted, no errors and result before handle
+        // not accepted, no errors and no result before handling but already has been dispatched
         $this->assertNull($job->getLastAcceptedAt());
         $this->assertNull($job->getResult());
         $this->assertNull($job->getErrors());
+        $this->assertCount(1, $job->getDispatches());
 
         $retryableException = new class('retryable_exception_message') extends \Exception implements
             JobRetryableExceptionInterface {
@@ -273,41 +274,67 @@ final class JobMiddlewareTest extends TestCase
             $jobCommand,
             [new TransportMessageIdStamp('long_string_id_2'), new ReceivedStamp('transport_1')]
         );
-        $this->messageBus->expects($this->once())->method('dispatch')->willReturn($repeatedEnvelope);
 
-        // emulate retryable exception thrown
+        // first call's retry 1 + first retries' retry + second retries' retry
+        $this->messageBus->expects($this->exactly(3))->method('dispatch')->willReturn($repeatedEnvelope);
+
+        // first call
         $this->stackNextMiddleware->method('handle')->willThrowException($retryableException);
-
         $jobMiddleware->handle($envelope, $this->stack);
 
         // it accepts once (ReceivedStamp)
         $this->assertNotNull($job->getLastAcceptedAt());
-        $this->assertEquals($workerInfo1, $job->lastAcceptance()->workerInfo());
+        $this->assertEquals($workerInfo, $job->lastAcceptance()->workerInfo());
         $this->assertCount(1, $job->getAcceptances());
 
-        // it records fails
-        $this->assertCount(1, $job->getErrors());
+        // it redispatched and dispatching increments attempts immediately
+        $this->assertCount(2, $job->getDispatches());
+        $this->assertEquals(2, $job->getAttemptsCount());
+        $this->assertCount(1, $job->getErrors()); // // it records a failure
         $this->assertEquals('retryable_exception_message', $job->getErrors()[0]['errorMessage']);
+        $this->assertNull($job->getSealedAt()); // it didn't seal (max retries is not reached yet)
 
-        // it didn't seal (max retries is not reached yet)
+        // first retry
+        $jobMiddleware->handle($repeatedEnvelope, $this->stack);
+        $this->assertCount(3, $job->getDispatches());
+        /** @noinspection PhpConditionAlreadyCheckedInspection */
+        $this->assertEquals(3, $job->getAttemptsCount());
+        $this->assertCount(
+            2,
+            $job->getErrors()
+        ); // errors count less than attempts count because new attempt already started
         $this->assertNull($job->getSealedAt());
 
-        // it redispatched
-        $this->assertCount(2, $job->getDispatches());
+        // second retry
+        $jobMiddleware->handle($repeatedEnvelope, $this->stack);
+        $this->assertCount(4, $job->getDispatches());
+        /** @noinspection PhpConditionAlreadyCheckedInspection */
+        $this->assertEquals(4, $job->getAttemptsCount());
+        $this->assertCount(
+            3,
+            $job->getErrors()
+        );  // errors count less than attempts count because new attempt already started
+        $this->assertNull($job->getSealedAt());
+
+        // last retry
+        $jobMiddleware->handle($repeatedEnvelope, $this->stack);
+        // it seals job
+        $this->assertNotNull($job->getSealedAt());
+        // so, it didn't change attempts counts
+        $this->assertCount(4, $job->getDispatches());
+        /** @noinspection PhpConditionAlreadyCheckedInspection */
+        $this->assertEquals(4, $job->getAttemptsCount());
+        // but it records last error too
+        $this->assertCount(
+            4,
+            $job->getErrors()
+        );
     }
 
     /**
      * @test
      */
     public function it_seals_non_retryable_at_once(): void
-    {
-        $this->assertEquals('TODO', 'TODO');
-    }
-
-    /**
-     * @test
-     */
-    public function it_seals_retryable_after_max_retries_reached(): void
     {
         $this->assertEquals('TODO', 'TODO');
     }
