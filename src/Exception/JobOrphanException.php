@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle\Exception;
 
-use CoreExtensions\JobQueueBundle\JobCommandInterface;
 use CoreExtensions\JobQueueBundle\JobManager;
 
 /**
- * Когда выясняется что у JobCommand нет соответствующего Job.
+ * throws if no job found by command job id
  *
  * @see JobManager::enqueueJob()
  * @see JobManager::enqueueChain()
  */
-final class JobCommandOrphanException extends \RuntimeException implements JobNonRetryableExceptionInterface
+final class JobOrphanException extends \RuntimeException implements JobNonRetryableExceptionInterface
 {
     private string $jobId;
 

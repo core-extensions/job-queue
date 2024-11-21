@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CoreExtensions\JobQueueBundle\Entity;
 
 use CoreExtensions\JobQueueBundle\Exception\JobExpiredException;
+use CoreExtensions\JobQueueBundle\Exception\JobNonRetryableExceptionInterface;
 use CoreExtensions\JobQueueBundle\Exception\JobRevokedException;
 use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
@@ -15,6 +16,9 @@ use Doctrine\ORM\Mapping as ORM;
 use Webmozart\Assert\Assert;
 
 /**
+ * (методы workflow вызываются для фиксации событий постфактум)
+ * (управление workflow осуществляется в middleware)
+ *
  * @ORM\Entity(repositoryClass="CoreExtensions\JobQueueBundle\Repository\JobRepository")
  * @ORM\Table(name="orm_jobs", schema="jobs"))
  */
@@ -24,16 +28,16 @@ class Job
      * Признак что остановили временно для re-run после deploy (обсуждаемо).
      */
     // остановили временно для re-run после deploy (обсуждаемо).
-    public const REVOKED_DUE_DEPLOYMENT = 10;
+    public const REVOKED_BECAUSE_DEPLOYMENT = 10;
 
     /**
      * Причины для sealed.
      */
-    public const SEALED_DUE_REVOKED_AND_CONFIRMED = 10;
-    public const SEALED_DUE_RESOLVED = 20;
-    public const SEALED_DUE_FAILED_BY_MAX_RETRIES_REACHED = 30;
-    public const SEALED_DUE_EXPIRED = 31;
-    public const SEALED_DUE_NON_RETRYABLE_ERROR_OCCURRED = 100;
+    public const SEALED_BECAUSE_REVOKED = 10;
+    public const SEALED_BECAUSE_RESOLVED = 20;
+    public const SEALED_BECAUSE_MAX_RETRIES_REACHED = 30;
+    public const SEALED_BECAUSE_EXPIRED = 31;
+    public const SEALED_BECAUSE_NON_RETRYABLE = 100;
 
     /**
      * @ORM\Id
@@ -166,7 +170,7 @@ class Job
     /**
      * Массив из ErrorInfo, где ключи ($attemptsCount - 1) (нумерация с нуля).
      *
-     * @var ?array{failedAt: string, errorCode: int, errorMessage: string, errorLine: int, errorFile: string, previousErrorCode: ?int, previousErrorMessage: ?string}
+     * @var ?array<int, array{failedAt: string, errorCode: int, errorMessage: string, errorLine: int, errorFile: string, previousErrorCode: ?int, previousErrorMessage: ?string}>
      *
      * @see FailInfo[]
      *
@@ -213,7 +217,7 @@ class Job
     /**
      * @ORM\Column(type="integer", nullable=true)
      */
-    private ?int $sealedDue = null;
+    private ?int $sealedBecauseOf = null;
 
     // >>> domain logic
 
@@ -225,7 +229,7 @@ class Job
     {
         $res = new self();
         $res->setJobId($jobId);
-        $res->setJobType($jobMessage->getJobType());
+        $res->setJobType($jobMessage->jobType());
         $res->setJobCommand($jobMessage->toArray());
         $res->setCreatedAt($createdAt);
         $res->configure(JobConfiguration::default());
@@ -273,7 +277,7 @@ class Job
      * Вызывается когда handler получил задачу из bus.
      * (refreshing denormalized field too)
      */
-    public function accepted(AcceptanceInfo $acceptanceInfo): void
+    public function accept(AcceptanceInfo $acceptanceInfo): void
     {
         $acceptedAt = $acceptanceInfo->acceptedAt();
 
@@ -294,23 +298,24 @@ class Job
                 __METHOD__
             )
         );
-        $this->assertJobNotSealed('accepted');
+        $this->assertJobNotSealed('accept');
 
         $this->recordAcceptance($acceptanceInfo);
         $this->setLastAcceptedAt($acceptedAt);
 
         // Здесь было непонятно:
-        //  - делать ли accepted для expired jobs или бросать JobNonRetryableExceptionInterface помечать его как failed в middleware
+        //  - 1) делать ли accepted для expired jobs или бросать JobNonRetryableExceptionInterface помечать его как failed в middleware
         //    таким образом Job будет и accepted, а затем failed
-        //  - делать ли это в middleware или в Job (тогда sealed можно private)
-        // В итоге решил что accepted не связан с failed, к тому же в accepted есть информация о worker, поэтому будет первый вариант
-        $this->assertJobNotExpired();
+        //  - 2) делать ли это в middleware или в Job (тогда sealed можно private)
+        // По пункту 1) - в итоге решил что accepted не связан с failed, к тому же в accepted есть информация о worker, поэтому будет первый вариант
+        // Но теперь не логично что метод меняет данные, но все равно бросает exception
+        $this->assertJobLastAcceptWasNotExpired();
     }
 
     /**
      * Вызывается клиентом для отмены.
      */
-    public function revoked(\DateTimeImmutable $revokedAt, int $revokedFor): void
+    public function revoke(\DateTimeImmutable $revokedAt, int $revokedFor): void
     {
         Assert::greaterThanEq(
             $revokedAt->getTimestamp(),
@@ -323,7 +328,7 @@ class Job
                 __METHOD__
             )
         );
-        $this->assertJobNotSealed('revoked');
+        $this->assertJobNotSealed('revoke');
 
         $this->setRevokedAt($revokedAt);
         $this->setRevokedFor($revokedFor);
@@ -333,7 +338,7 @@ class Job
      * Вызывается когда handler получил знание об отмене.
      * (возможно нужно будет вызывать в catch JobE)
      */
-    public function revokeConfirmed(\DateTimeImmutable $revokeConfirmedAt): void
+    public function confirmRevoke(\DateTimeImmutable $revokeConfirmedAt): void
     {
         $revokedAt = $this->getRevokedAt();
 
@@ -352,10 +357,10 @@ class Job
                 __METHOD__
             )
         );
-        $this->assertJobNotSealed('revokeConfirmed');
+        $this->assertJobNotSealed('confirmRevoke');
 
         $this->setRevokeAcceptedAt($revokeConfirmedAt);
-        $this->sealed($revokeConfirmedAt, self::SEALED_DUE_REVOKED_AND_CONFIRMED);
+        $this->sealed($revokeConfirmedAt, self::SEALED_BECAUSE_REVOKED);
     }
 
     /**
@@ -364,14 +369,11 @@ class Job
      *
      * @param array<string, mixed> $result
      */
-    public function resolved(\DateTimeImmutable $resolvedAt, array $result): void
+    public function resolve(\DateTimeImmutable $resolvedAt, array $result): void
     {
-        $acceptedAt = $this->getLastAcceptedAt();
+        $this->assertJobAccepted('resolved');
 
-        Assert::notNull(
-            $acceptedAt,
-            sprintf('Attempt to resolve non accepted job "%s" in "%s"', $this->getJobId(), __METHOD__)
-        );
+        $acceptedAt = $this->lastAcceptedAt;
         Assert::greaterThanEq(
             $resolvedAt->getTimestamp(),
             $acceptedAt->getTimestamp(),
@@ -387,27 +389,23 @@ class Job
             $result,
             sprintf('Result must be not empty array for job "%s" in "%s"', $this->jobId, __METHOD__)
         );
-        $this->assertJobNotSealed('resolved');
+        $this->assertJobNotSealed('resolve');
 
         $this->setResolvedAt($resolvedAt);
         $this->setResult($result);
 
         // resolved => sealed
-        $this->sealed($resolvedAt, self::SEALED_DUE_RESOLVED);
+        $this->sealed($resolvedAt, self::SEALED_BECAUSE_RESOLVED);
     }
 
     /**
      * Вызывается в handler при каждом fail.
      */
-    public function failed(FailInfo $errorInfo): void
+    public function reject(\DateTimeImmutable $failedAt, \Throwable $error): void
     {
-        $failedAt = $errorInfo->failedAt();
-        $acceptedAt = $this->getLastAcceptedAt();
+        $acceptedAt = $this->lastAcceptedAt;
 
-        Assert::notNull(
-            $acceptedAt,
-            sprintf('Attempt to failed non accepted job "%s" in "%s"', $this->getJobId(), __METHOD__)
-        );
+        $this->assertJobAccepted('failed');
         Assert::greaterThanEq(
             $failedAt->getTimestamp(),
             $acceptedAt->getTimestamp(),
@@ -419,15 +417,27 @@ class Job
                 __METHOD__
             )
         );
-        $this->assertJobNotSealed('failed');
+        $this->assertJobNotSealed('reject');
 
-        $this->recordFailedAttempt($errorInfo);
-        /*
-        $maxRetries = $this->jobConfiguration()->maxRetries();
-        if ($this->getAttemptsCount() >= $maxRetries) {
-            $this->sealed($failedAt, self::SEALED_DUE_FAILED_BY_MAX_RETRIES_REACHED);
+        $toSeal = null;
+        if ($error instanceof JobNonRetryableExceptionInterface) {
+            $toSeal = self::SEALED_BECAUSE_NON_RETRYABLE;
+        } else {
+            // handling all other exceptions, those considering like retryable
+            $maxRetries = $this->jobConfiguration()->maxRetries();
+            $isLimitReached = $this->getAttemptsCount() >= $maxRetries;
+
+            if ($isLimitReached) {
+                $toSeal = self::SEALED_BECAUSE_MAX_RETRIES_REACHED;
+            }
         }
-        */
+
+        // record always
+        $this->recordFailedAttempt(FailInfo::fromThrowable($failedAt, $error));
+
+        if (null !== $toSeal) {
+            $this->sealed($failedAt, $toSeal);
+        }
     }
 
     public function bindToChain(string $chainId, int $chainPosition): void
@@ -447,7 +457,7 @@ class Job
 
     public function configure(JobConfiguration $jobConfiguration): void
     {
-        $this->assertJobNotSealed('revoked');
+        $this->assertJobNotSealed('configure');
         $this->setJobConfiguration($jobConfiguration->toArray());
     }
 
@@ -457,7 +467,7 @@ class Job
     public function sealed(\DateTimeImmutable $sealedAt, int $due): void
     {
         $this->setSealedAt($sealedAt);
-        $this->setSealedDue($due);
+        $this->setSealedBecauseOf($due);
     }
 
     private function recordDispatch(DispatchInfo $dispatchInfo): void
@@ -529,7 +539,7 @@ class Job
         }
     }
 
-    public function assertJobNotExpired(): void
+    public function assertJobLastAcceptWasNotExpired(): void
     {
         Assert::notNull(
             $this->lastDispatchedAt,
@@ -547,6 +557,21 @@ class Job
         }
     }
 
+    /**
+     * (inner)
+     */
+    private function assertJobAccepted(string $action): void
+    {
+        Assert::notNull(
+            $this->lastAcceptedAt,
+            sprintf(
+                'Attempt to apply action "%s" to non accepted job "%s" in "%s"',
+                $action,
+                $this->getJobId(),
+                __METHOD__
+            )
+        );
+    }
     // <<< domain logic
 
     // getters && setters (doctrine)
@@ -693,7 +718,7 @@ class Job
     }
 
     /**
-     * @return ?array{failedAt: string, errorCode: int, errorMessage: string, errorLine: int, errorFile: string, previousErrorCode: ?int, previousErrorMessage: ?string}
+     * @return ?array<int, array{failedAt: string, errorCode: int, errorMessage: string, errorLine: int, errorFile: string, previousErrorCode: ?int, previousErrorMessage: ?string}>
      */
     public function getErrors(): ?array
     {
@@ -744,14 +769,14 @@ class Job
         $this->sealedAt = $sealedAt;
     }
 
-    public function getSealedDue(): ?int
+    public function getSealedBecauseOf(): ?int
     {
-        return $this->sealedDue;
+        return $this->sealedBecauseOf;
     }
 
-    public function setSealedDue(?int $sealedDue): void
+    public function setSealedBecauseOf(?int $sealedBecauseOf): void
     {
-        $this->sealedDue = $sealedDue;
+        $this->sealedBecauseOf = $sealedBecauseOf;
     }
 
     public function getLastAcceptedAt(): ?\DateTimeImmutable

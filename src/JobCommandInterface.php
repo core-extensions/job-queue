@@ -12,12 +12,12 @@ use CoreExtensions\JobQueueBundle\Entity\Job;
  */
 interface JobCommandInterface
 {
-    public function getJobType(): string;
+    public function jobType(): string;
 
     /**
      * (присутствует здесь потому что требуется в handler и middleware)
      */
-    public function getJobId(): ?string;
+    public function jobId(): ?string;
 
     /**
      * (вызывается в \CoreExtensions\JobQueueBundle\Entity\Job::initNew)

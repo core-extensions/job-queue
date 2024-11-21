@@ -7,6 +7,7 @@ namespace CoreExtensions\JobQueueBundle\Exception;
 use CoreExtensions\JobQueueBundle\Entity\Job;
 
 /**
+ * used if period between dispatch and accept exceeds timeout
  * @see JobConfiguration::timeout
  */
 final class JobExpiredException extends \RuntimeException implements JobNonRetryableExceptionInterface
@@ -17,7 +18,7 @@ final class JobExpiredException extends \RuntimeException implements JobNonRetry
     {
         $res = new self(
             sprintf(
-                'Job "%s" failed due to timeout exceed (timeout %d sec))',
+                'Job "%s" failed because of timeout exceed (timeout %d sec))',
                 $job->getJobId(),
                 $job->jobConfiguration()->timeout(),
             )

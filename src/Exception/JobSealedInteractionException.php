@@ -6,6 +6,9 @@ namespace CoreExtensions\JobQueueBundle\Exception;
 
 use CoreExtensions\JobQueueBundle\Entity\Job;
 
+/**
+ * throws if interaction with sealed job occurred
+ */
 final class JobSealedInteractionException extends \RuntimeException implements JobNonRetryableExceptionInterface
 {
     private string $jobId;
@@ -15,10 +18,10 @@ final class JobSealedInteractionException extends \RuntimeException implements J
     {
         $res = new self(
             sprintf(
-                'Failed to apply action "%s" to sealed job "%s" (due %d))',
+                'Failed to apply action "%s" to sealed job "%s" (because of %d))',
                 $action,
                 $job->getJobId(),
-                $job->getSealedDue()
+                $job->getSealedBecauseOf()
             )
         );
         $res->jobId = $job->getJobId();

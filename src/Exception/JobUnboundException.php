@@ -7,7 +7,7 @@ namespace CoreExtensions\JobQueueBundle\Exception;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
 
 /**
- * Когда выясняется что к JobCommand не привязан Job.
+ * throws if job command has empty job id
  */
 final class JobUnboundException extends \RuntimeException implements JobNonRetryableExceptionInterface
 {
@@ -18,11 +18,11 @@ final class JobUnboundException extends \RuntimeException implements JobNonRetry
         $res = new self(
             sprintf(
                 'Using unbound job command with job type "%s"',
-                $jobCommand->getJobType()
+                $jobCommand->jobType()
             )
         );
 
-        $res->jobType = $jobCommand->getJobType();
+        $res->jobType = $jobCommand->jobType();
 
         return $res;
     }

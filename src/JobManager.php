@@ -88,7 +88,7 @@ final class JobManager
      *
      * @throws \Throwable
      *
-     * @see JobCommandOrphanException
+     * @see JobOrphanException
      */
     public function enqueueChain(string $chainId, array $jobs): void
     {

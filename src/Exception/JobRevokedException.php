@@ -8,7 +8,7 @@ use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Serializer;
 
 /**
- * throws when interaction with revoked job occurred
+ * throws if interaction with revoked job occurred
  */
 final class JobRevokedException extends \RuntimeException implements JobNonRetryableExceptionInterface
 {

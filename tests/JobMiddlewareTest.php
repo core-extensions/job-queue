@@ -8,10 +8,9 @@ use CoreExtensions\JobQueueBundle\Entity\AcceptanceInfo;
 use CoreExtensions\JobQueueBundle\Entity\DispatchInfo;
 use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Entity\WorkerInfo;
-use CoreExtensions\JobQueueBundle\Exception\JobCommandOrphanException;
+use CoreExtensions\JobQueueBundle\Exception\JobOrphanException;
 use CoreExtensions\JobQueueBundle\Exception\JobNonRetryableExceptionInterface;
 use CoreExtensions\JobQueueBundle\Exception\JobRetryableExceptionInterface;
-use CoreExtensions\JobQueueBundle\Exception\JobRevokedException;
 use CoreExtensions\JobQueueBundle\Exception\JobUnboundException;
 use CoreExtensions\JobQueueBundle\JobConfiguration;
 use CoreExtensions\JobQueueBundle\JobMiddleware;
@@ -82,7 +81,7 @@ final class JobMiddlewareTest extends TestCase
         $jobCommand = $this->jobCommandFactory->createFromJob($job);
         $envelope = new Envelope($jobCommand, [new TransportMessageIdStamp('long_string_id')]);
 
-        $this->expectException(JobCommandOrphanException::class);
+        $this->expectException(JobOrphanException::class);
         $jobMiddleware->handle($envelope, $this->stack);
     }
 
@@ -100,28 +99,30 @@ final class JobMiddlewareTest extends TestCase
         $jobMiddleware->handle($envelope, $this->stack);
     }
 
+
     /**
+     * кажется не нужен, потому что JobRevokedException у нас checked и обрабатывается без exception вовне
      * @test
+     * public function it_yells_if_revoked_job_found(): void
+     * {
+     * $job = $this->job;
+     * $jobMiddleware = $this->jobMiddleware;
+     *
+     * $jobCommand = $this->jobCommandFactory->createFromJob($job);
+     * $envelope = new Envelope($jobCommand, [new TransportMessageIdStamp('long_string_id')]);
+     *
+     * // prevents unbound found
+     * $this->jobRepository->method('find')->willReturn($job);
+     *
+     * // do workflow stuff
+     * $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
+     * $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
+     * $job->revoked(new \DateTimeImmutable(), Job::REVOKED_DUE_DEPLOYMENT);
+     *
+     * $this->expectException(JobRevokedException::class);
+     * $jobMiddleware->handle($envelope, $this->stack);
+     * }
      */
-    public function it_yells_if_revoked_job_found(): void
-    {
-        $job = $this->job;
-        $jobMiddleware = $this->jobMiddleware;
-
-        $jobCommand = $this->jobCommandFactory->createFromJob($job);
-        $envelope = new Envelope($jobCommand, [new TransportMessageIdStamp('long_string_id')]);
-
-        // prevents unbound found
-        $this->jobRepository->method('find')->willReturn($job);
-
-        // do workflow stuff
-        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
-        $job->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
-        $job->revoked(new \DateTimeImmutable(), Job::REVOKED_DUE_DEPLOYMENT);
-
-        $this->expectException(JobRevokedException::class);
-        $jobMiddleware->handle($envelope, $this->stack);
-    }
 
     /**
      * @test
@@ -177,7 +178,7 @@ final class JobMiddlewareTest extends TestCase
 
         // do workflow stuffs
         $job1->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id'));
-        $job1->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
+        $job1->accept(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
 
         // should not be orphan
         $this->jobRepository->method('find')->willReturn($job1);
@@ -211,7 +212,7 @@ final class JobMiddlewareTest extends TestCase
         $job1->bindToChain('dcaf6b93-1a63-400d-95cf-10b604cdc61a', 0);
 
         $job1->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_message_id_1'));
-        $job1->accepted(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
+        $job1->accept(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
 
         $jobCommand1 = $this->jobCommandFactory->createFromJob($job1);
         $envelope1 = new Envelope($jobCommand1, [new TransportMessageIdStamp('long_string_id_1')]);
@@ -278,7 +279,7 @@ final class JobMiddlewareTest extends TestCase
 
         // first call
         $this->stackNextMiddleware->method('handle')->willThrowException(
-            new class ('retryable_exception_message') extends \Exception implements JobRetryableExceptionInterface {
+            new class('retryable_exception_message') extends \Exception implements JobRetryableExceptionInterface {
             }
         );
         $jobMiddleware->handle($envelope, $this->stack);
@@ -291,6 +292,7 @@ final class JobMiddlewareTest extends TestCase
         // it redispatched and dispatching increments attempts immediately
         $this->assertCount(2, $job->getDispatches());
         $this->assertEquals(2, $job->getAttemptsCount());
+        $this->assertNotNull($job->getErrors());
         $this->assertCount(1, $job->getErrors()); // // it records a failure
         $this->assertEquals('retryable_exception_message', $job->getErrors()[0]['errorMessage']);
         $this->assertNull($job->getSealedAt()); // it didn't seal (max retries is not reached yet)
@@ -308,7 +310,7 @@ final class JobMiddlewareTest extends TestCase
 
         // it retries if base exception thrown
         $this->stackNextMiddleware->method('handle')->willThrowException(
-            new class ('retryable_exception_message') extends \Exception {
+            new class('retryable_by_default_exception_message') extends \Exception {
             }
         );
 
@@ -327,7 +329,7 @@ final class JobMiddlewareTest extends TestCase
         $jobMiddleware->handle($repeatedEnvelope, $this->stack);
         // it seals job due max retries reached
         $this->assertNotNull($job->getSealedAt());
-        $this->assertEquals(Job::SEALED_DUE_FAILED_BY_MAX_RETRIES_REACHED, $job->getSealedDue());
+        $this->assertEquals(Job::SEALED_BECAUSE_MAX_RETRIES_REACHED, $job->getSealedBecauseOf());
         // so, it didn't change attempts counts
         $this->assertCount(4, $job->getDispatches());
         /** @noinspection PhpConditionAlreadyCheckedInspection */
@@ -365,7 +367,7 @@ final class JobMiddlewareTest extends TestCase
         $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id_1'));
 
         $this->stackNextMiddleware->method('handle')->willThrowException(
-            new class ('non_retryable_exception_message') extends \Exception implements
+            new class('non_retryable_exception_message') extends \Exception implements
                 JobNonRetryableExceptionInterface {
             }
         );
@@ -380,7 +382,7 @@ final class JobMiddlewareTest extends TestCase
         $this->assertEquals(1, $job->getAttemptsCount());
         // it properly seals
         $this->assertNotNull($job->getSealedAt());
-        $this->assertEquals(Job::SEALED_DUE_NON_RETRYABLE_ERROR_OCCURRED, $job->getSealedDue());
+        $this->assertEquals(Job::SEALED_BECAUSE_NON_RETRYABLE, $job->getSealedBecauseOf());
     }
 
     /**

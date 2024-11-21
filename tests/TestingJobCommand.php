@@ -26,12 +26,12 @@ final class TestingJobCommand implements JobCommandInterface
     {
     }
 
-    public function getJobType(): string
+    public function jobType(): string
     {
         return self::JOB_TYPE;
     }
 
-    public function getJobId(): ?string
+    public function jobId(): ?string
     {
         return $this->jobId;
     }
