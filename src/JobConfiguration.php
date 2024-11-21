@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle;
 
-use CoreExtensions\JobQueueBundle\Exception\JobTimeoutExceededException;
+use CoreExtensions\JobQueueBundle\Exception\JobExpiredException;
 use Webmozart\Assert\Assert;
 
 /**
@@ -22,8 +22,10 @@ final class JobConfiguration
 
     /**
      * Количество секунд по истечению которой Job при поступлении в handler не будет.
+     * Если выполнение уже началось (был accepted), то оно не будет прервано.
+     * (проверка применяется к периоду между dispatched и accepted)
      *
-     * @see JobTimeoutExceededException
+     * @see JobExpiredException
      */
     private ?int $timeout;
 

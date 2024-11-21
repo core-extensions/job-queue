@@ -108,6 +108,12 @@ class JobMiddleware implements MiddlewareInterface
          * @var ReceivedStamp|null $stamp
          */
         if (null === $job->getLastAcceptedAt() && null !== ($stamp = $envelope->last(ReceivedStamp::class))) {
+            // здесь непонятно, делать ли accepted для expired jobs или нет
+            // еще лучше наверно внутри accepted делать, тогда sealed можно private
+
+            $timeout = $job->jobConfiguration()->timeout();
+            $isLimitReached = $job->getLastAcceptedAt()->getTimestamp() - $job->getLastDispatchedAt()->getTimestamp();
+
             $job->accepted(
                 AcceptanceInfo::fromValues(
                     new \DateTimeImmutable(),

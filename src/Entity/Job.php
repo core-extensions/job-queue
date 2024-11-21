@@ -6,6 +6,7 @@ namespace CoreExtensions\JobQueueBundle\Entity;
 
 use CoreExtensions\JobQueueBundle\Exception\JobRevokedException;
 use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
+use CoreExtensions\JobQueueBundle\Exception\JobExpiredException;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
 use CoreExtensions\JobQueueBundle\JobConfiguration;
 use CoreExtensions\JobQueueBundle\JobManager;
@@ -31,7 +32,7 @@ class Job
     public const SEALED_DUE_REVOKED_AND_CONFIRMED = 10;
     public const SEALED_DUE_RESOLVED = 20;
     public const SEALED_DUE_FAILED_BY_MAX_RETRIES_REACHED = 30;
-    public const SEALED_DUE_FAILED_TIMEOUT = 31;
+    public const SEALED_DUE_EXPIRED = 31;
     public const SEALED_DUE_NON_RETRYABLE_ERROR_OCCURRED = 100;
 
     /**
@@ -518,6 +519,24 @@ class Job
     {
         if (null !== $this->getSealedAt()) {
             throw JobSealedInteractionException::fromJob($this, $action);
+        }
+    }
+
+    public function assertJobNotExpired(): void
+    {
+        Assert::notNull(
+            $this->lastDispatchedAt,
+            sprintf('Trying to check expiration for non-dispatched job "%s" in "%s"', $this->jobId, __METHOD__)
+        );
+        Assert::notNull(
+            $this->lastAcceptedAt,
+            sprintf('Trying to check expiration for non-accepted job "%s" in "%s"', $this->jobId, __METHOD__)
+        );
+
+        $passed = $this->lastAcceptedAt->getTimestamp() - $this->lastDispatchedAt->getTimestamp();
+
+        if ($passed >= $this->jobConfiguration()->timeout()) {
+            throw JobExpiredException::fromJob($this);
         }
     }
 

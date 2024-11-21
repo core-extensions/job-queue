@@ -9,7 +9,7 @@ use CoreExtensions\JobQueueBundle\Entity\Job;
 /**
  * @see JobConfiguration::timeout
  */
-final class JobTimeoutExceededException extends \RuntimeException implements JobNonRetryableExceptionInterface
+final class JobExpiredException extends \RuntimeException implements JobNonRetryableExceptionInterface
 {
     private string $jobId;
 
