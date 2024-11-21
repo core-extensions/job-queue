@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle\Entity;
 
-use CoreExtensions\JobQueueBundle\Exception\JobNonRetryableExceptionInterface;
+use CoreExtensions\JobQueueBundle\Exception\JobExpiredException;
 use CoreExtensions\JobQueueBundle\Exception\JobRevokedException;
 use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
-use CoreExtensions\JobQueueBundle\Exception\JobExpiredException;
 use CoreExtensions\JobQueueBundle\JobCommandInterface;
 use CoreExtensions\JobQueueBundle\JobConfiguration;
 use CoreExtensions\JobQueueBundle\JobManager;
@@ -248,12 +247,12 @@ class Job
 
         Assert::greaterThanEq(
             $dispatchedAt->getTimestamp(),
-            $this->getCreatedAt()->getTimestamp(),
+            $this->createdAt->getTimestamp(),
             sprintf(
                 'Job "%s" cannot be dispatched "%s" earlier than created "%s" in "%s"',
                 $this->getJobId(),
                 Serializer::serializeDateTime($dispatchedAt),
-                Serializer::serializeDateTime($this->getLastDispatchedAt()),
+                Serializer::serializeDateTime($this->createdAt),
                 __METHOD__
             )
         );
@@ -315,12 +314,12 @@ class Job
     {
         Assert::greaterThanEq(
             $revokedAt->getTimestamp(),
-            $this->getCreatedAt()->getTimestamp(),
+            $this->createdAt->getTimestamp(),
             sprintf(
                 'Job "%s" cannot be revoked "%s" earlier than created "%s" in "%s"',
                 $this->getJobId(),
                 Serializer::serializeDateTime($revokedAt),
-                Serializer::serializeDateTime($this->getCreatedAt()),
+                Serializer::serializeDateTime($this->createdAt),
                 __METHOD__
             )
         );

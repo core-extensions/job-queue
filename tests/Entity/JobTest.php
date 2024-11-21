@@ -19,16 +19,18 @@ use PHPUnit\Framework\TestCase;
 
 final class JobTest extends TestCase
 {
+    private \DateTimeImmutable $now;
     private Job $job;
 
     protected function setUp(): void
     {
         parent::setUp();
 
+        $this->now = new \DateTimeImmutable();
         $this->job = $this->provideJob(
             '99a01a56-3f9d-4bf1-b065-484455cc2847',
-            $this->provideCommand(new \DateTimeImmutable()),
-            new \DateTimeImmutable()
+            $this->provideCommand($this->now),
+            $this->now
         );
     }
 
@@ -37,7 +39,7 @@ final class JobTest extends TestCase
      */
     public function it_can_be_initiated(): void
     {
-        $createdAt = new \DateTimeImmutable();
+        $createdAt = $this->now;
         $command = $this->provideCommand($createdAt);
         $job = $this->provideJob('99a01a56-3f9d-4bf1-b065-484455cc2847', $command, $createdAt);
 
@@ -89,19 +91,25 @@ final class JobTest extends TestCase
 
     /**
      * @test
+     * @noinspection PhpUnhandledExceptionInspection
      */
     public function it_can_be_accepted(): void
     {
         $job = $this->job;
+        $createdAt = $this->now;
 
-        $acceptedAt = new \DateTimeImmutable();
+        // dispatched after one second
+        $dispatchedAt = $createdAt->add(new \DateInterval('PT1S'));
+        $job->dispatched(DispatchInfo::fromValues($dispatchedAt, 'long_string_id'));
+
+        // no errors if timeout is not reached
+        $timeout = $job->jobConfiguration()->timeout();
+        $acceptedAt = $dispatchedAt->add(new \DateInterval('PT'.($timeout - 1).'S'));
         $workerInfo = WorkerInfo::fromValues(2, 'worker_2');
 
-        // job must be dispatched before
-        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id_1'));
         $job->accepted(AcceptanceInfo::fromValues($acceptedAt, $workerInfo));
 
-        $this->assertEquals('long_string_id_1', $job->lastDispatch()->messageId());
+        $this->assertEquals('long_string_id', $job->lastDispatch()->messageId());
 
         $this->assertEquals($acceptedAt, $job->getLastAcceptedAt());
         $this->assertEquals($acceptedAt, $job->lastAcceptance()->acceptedAt());
@@ -110,23 +118,23 @@ final class JobTest extends TestCase
 
     /**
      * @test
+     * @noinspection PhpUnhandledExceptionInspection
      */
     public function it_yells_if_expired_accept(): void
     {
         $job = $this->job;
+        $createdAt = $this->now;
 
-        $acceptedAt = new \DateTimeImmutable();
-        $workerInfo = WorkerInfo::fromValues(2, 'worker_2');
+        // dispatched after one second
+        $dispatchedAt = $createdAt->add(new \DateInterval('PT1S'));
+        $job->dispatched(DispatchInfo::fromValues($dispatchedAt, 'long_string_id'));
 
-        // job must be dispatched before
-        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id_1'));
-        $job->accepted(AcceptanceInfo::fromValues($acceptedAt, $workerInfo));
+        $this->expectException(JobExpiredException::class);
 
-        $this->assertEquals('long_string_id_1', $job->lastDispatch()->messageId());
-
-        $this->assertEquals($acceptedAt, $job->getLastAcceptedAt());
-        $this->assertEquals($acceptedAt, $job->lastAcceptance()->acceptedAt());
-        $this->assertEquals($workerInfo->toArray(), $job->lastAcceptance()->workerInfo()->toArray());
+        // accept at time far enough in the future to exceed timeout
+        $timeout = $job->jobConfiguration()->timeout();
+        $acceptedAt = $dispatchedAt->add(new \DateInterval('PT'.$timeout.'S'));
+        $job->accepted(AcceptanceInfo::fromValues($acceptedAt, WorkerInfo::fromValues(2, 'worker_2')));
     }
 
     /**
@@ -272,7 +280,6 @@ final class JobTest extends TestCase
             new JobBusinessLogicException('Some description 3', 10, new \RuntimeException('Previous 3'))
         );
         $job->failed($error3);
-
         /* moved to middleware
         $this->assertNotNull($job->getSealedAt());
         $this->assertEquals(Job::SEALED_DUE_FAILED_BY_MAX_RETRIES_REACHED, $job->getSealedDue());
