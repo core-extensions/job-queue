@@ -75,11 +75,7 @@ final class JobTest extends TestCase
      */
     public function it_can_be_dispatched(): void
     {
-        $job = $this->provideJob(
-            '99a01a56-3f9d-4bf1-b065-484455cc2847',
-            $this->provideCommand(new \DateTimeImmutable()),
-            new \DateTimeImmutable()
-        );
+        $job = $this->job;
 
         $dispatchedAt = new \DateTimeImmutable();
         $job->dispatched(DispatchInfo::fromValues($dispatchedAt, 'random_string_id'));
@@ -96,11 +92,28 @@ final class JobTest extends TestCase
      */
     public function it_can_be_accepted(): void
     {
-        $job = $this->provideJob(
-            '99a01a56-3f9d-4bf1-b065-484455cc2847',
-            $this->provideCommand(new \DateTimeImmutable()),
-            new \DateTimeImmutable()
-        );
+        $job = $this->job;
+
+        $acceptedAt = new \DateTimeImmutable();
+        $workerInfo = WorkerInfo::fromValues(2, 'worker_2');
+
+        // job must be dispatched before
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id_1'));
+        $job->accepted(AcceptanceInfo::fromValues($acceptedAt, $workerInfo));
+
+        $this->assertEquals('long_string_id_1', $job->lastDispatch()->messageId());
+
+        $this->assertEquals($acceptedAt, $job->getLastAcceptedAt());
+        $this->assertEquals($acceptedAt, $job->lastAcceptance()->acceptedAt());
+        $this->assertEquals($workerInfo->toArray(), $job->lastAcceptance()->workerInfo()->toArray());
+    }
+
+    /**
+     * @test
+     */
+    public function it_yells_if_expired_accept(): void
+    {
+        $job = $this->job;
 
         $acceptedAt = new \DateTimeImmutable();
         $workerInfo = WorkerInfo::fromValues(2, 'worker_2');
@@ -121,11 +134,7 @@ final class JobTest extends TestCase
      */
     public function it_can_be_revoked(): void
     {
-        $job = $this->provideJob(
-            '99a01a56-3f9d-4bf1-b065-484455cc2847',
-            $this->provideCommand(new \DateTimeImmutable()),
-            new \DateTimeImmutable()
-        );
+        $job = $this->job;
 
         $revokedAt = new \DateTimeImmutable();
         $job->revoked($revokedAt, Job::REVOKED_DUE_DEPLOYMENT);
@@ -141,11 +150,7 @@ final class JobTest extends TestCase
      */
     public function it_can_be_revoke_confirmed(): void
     {
-        $job = $this->provideJob(
-            '99a01a56-3f9d-4bf1-b065-484455cc2847',
-            $this->provideCommand(new \DateTimeImmutable()),
-            new \DateTimeImmutable()
-        );
+        $job = $this->job;
 
         $job->revoked(new \DateTimeImmutable(), Job::REVOKED_DUE_DEPLOYMENT);
 
@@ -169,11 +174,7 @@ final class JobTest extends TestCase
      */
     public function it_can_be_resolved(): void
     {
-        $job = $this->provideJob(
-            '99a01a56-3f9d-4bf1-b065-484455cc2847',
-            $this->provideCommand(new \DateTimeImmutable()),
-            new \DateTimeImmutable()
-        );
+        $job = $this->job;
 
         $result = [
             'example_int' => 2,
@@ -202,11 +203,7 @@ final class JobTest extends TestCase
      */
     public function it_can_be_failed(): void
     {
-        $job = $this->provideJob(
-            '99a01a56-3f9d-4bf1-b065-484455cc2847',
-            $this->provideCommand(new \DateTimeImmutable()),
-            new \DateTimeImmutable()
-        );
+        $job = $this->job;
 
         $failedAt = new \DateTimeImmutable();
         $failInfo = FailInfo::fromThrowable(
@@ -232,11 +229,7 @@ final class JobTest extends TestCase
      */
     public function it_can_be_failed_many_times(): void
     {
-        $job = $this->provideJob(
-            '99a01a56-3f9d-4bf1-b065-484455cc2847',
-            $this->provideCommand(new \DateTimeImmutable()),
-            new \DateTimeImmutable()
-        );
+        $job = $this->job;
         $job->configure(JobConfiguration::default()->withMaxRetries(3));
 
         // job must be dispatched and accepted before
@@ -301,7 +294,7 @@ final class JobTest extends TestCase
     /**
      * @test
      */
-    public function it_yells_when_dispatching_sealed(): void
+    public function it_yells_if_sealed_dispatch(): void
     {
         $job = $this->job;
 
@@ -321,7 +314,7 @@ final class JobTest extends TestCase
     /**
      * @test
      */
-    public function it_yells_when_accepting_sealed(): void
+    public function it_yells_if_sealed_accept(): void
     {
         $job = $this->job;
 
@@ -340,7 +333,7 @@ final class JobTest extends TestCase
     /**
      * @test
      */
-    public function it_yells_when_revoking_sealed(): void
+    public function it_yells_if_sealed_revoke(): void
     {
         $job = $this->job;
 
@@ -359,7 +352,7 @@ final class JobTest extends TestCase
     /**
      * @test
      */
-    public function it_yells_when_revoke_confirming_sealed(): void
+    public function it_yells_if_sealed_confirm_revoke(): void
     {
         $job = $this->job;
 
@@ -380,7 +373,7 @@ final class JobTest extends TestCase
     /**
      * @test
      */
-    public function it_yells_when_resolving_sealed(): void
+    public function it_yells_if_sealed_resolve(): void
     {
         $job = $this->job;
         // workflow stuff
@@ -420,7 +413,7 @@ final class JobTest extends TestCase
     /**
      * @test
      */
-    public function it_yells_when_binding_to_chain_sealed(): void
+    public function it_yells_if_sealed_bind_to_chain(): void
     {
         $job = $this->job;
 

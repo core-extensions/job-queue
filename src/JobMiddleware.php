@@ -111,8 +111,7 @@ class JobMiddleware implements MiddlewareInterface
             // здесь непонятно, делать ли accepted для expired jobs или нет
             // еще лучше наверно внутри accepted делать, тогда sealed можно private
 
-            $timeout = $job->jobConfiguration()->timeout();
-            $isLimitReached = $job->getLastAcceptedAt()->getTimestamp() - $job->getLastDispatchedAt()->getTimestamp();
+
 
             $job->accepted(
                 AcceptanceInfo::fromValues(
@@ -120,6 +119,8 @@ class JobMiddleware implements MiddlewareInterface
                     $this->workerInfoResolver->resolveWorkerInfo($stamp)
                 )
             );
+
+
         }
 
         // call next middlewares and handler

@@ -74,7 +74,7 @@ final class JobMiddlewareTest extends TestCase
     /**
      * @test
      */
-    public function it_yells_when_orphan_command_found(): void
+    public function it_yells_if_orphan_command_found(): void
     {
         $job = $this->job;
         $jobMiddleware = $this->jobMiddleware;
@@ -89,7 +89,7 @@ final class JobMiddlewareTest extends TestCase
     /**
      * @test
      */
-    public function it_yells_when_unbound_command_found(): void
+    public function it_yells_if_unbound_command_found(): void
     {
         $jobMiddleware = $this->jobMiddleware;
 
@@ -103,7 +103,7 @@ final class JobMiddlewareTest extends TestCase
     /**
      * @test
      */
-    public function it_yells_when_revoked_job_found(): void
+    public function it_yells_if_revoked_job_found(): void
     {
         $job = $this->job;
         $jobMiddleware = $this->jobMiddleware;

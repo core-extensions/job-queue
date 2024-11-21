@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle\Entity;
 
+use CoreExtensions\JobQueueBundle\Exception\JobNonRetryableExceptionInterface;
 use CoreExtensions\JobQueueBundle\Exception\JobRevokedException;
 use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
 use CoreExtensions\JobQueueBundle\Exception\JobExpiredException;
@@ -298,6 +299,13 @@ class Job
 
         $this->recordAcceptance($acceptanceInfo);
         $this->setLastAcceptedAt($acceptedAt);
+
+        // Здесь было непонятно:
+        //  - делать ли accepted для expired jobs или бросать JobNonRetryableExceptionInterface помечать его как failed в middleware
+        //    таким образом Job будет и accepted, а затем failed
+        //  - делать ли это в middleware или в Job (тогда sealed можно private)
+        // В итоге решил что accepted не связан с failed, к тому же в accepted есть информация о worker, поэтому будет первый вариант
+        $this->assertJobNotExpired();
     }
 
     /**
