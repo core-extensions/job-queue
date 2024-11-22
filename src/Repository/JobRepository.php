@@ -39,14 +39,14 @@ class JobRepository extends ServiceEntityRepository
 
     public function findNextChained(string $chainId, int $currPosition): ?Job
     {
+        /** @noinspection PhpIncompatibleReturnTypeInspection */
         return $this->findOneBy(['chainId' => $chainId, 'chainPosition' => $currPosition + 1]);
     }
 
     /**
      * Our way to determine search options.
      */
-    /*
-    private function findBySimpleCriteria(array $criteria, ?array $orderBy = null, $limit = null, $offset = null): array
+    public function findBySimpleCriteria(array $criteria, ?array $orderBy = null, $limit = null, $offset = null): array
     {
         $qb = $this->createQueryBuilder('jobs');
         $qb = $this->applyCriteria($qb, $criteria);
@@ -61,7 +61,6 @@ class JobRepository extends ServiceEntityRepository
 
         return $this->findBy($criteria, $orderBy, $limit, $offset);
     }
-    */
 
     /**
      * @param array<string, mixed> $criteria

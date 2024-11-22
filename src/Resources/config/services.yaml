@@ -2,9 +2,9 @@ services:
   core-extensions.job_queue.job_repository:
     class: CoreExtensions\JobQueueBundle\Repository\JobRepository
     arguments:
-      $registry: @doctrine
+      $registry: '@doctrine'
   core-extensions.job_queue.job_middleware:
     class: CoreExtensions\JobQueueBundle\JobMiddleware
     arguments:
-      $jobRepository: @core-extensions.job_queue.job_repository
-      $entityManager: @doctrine.orm.default_entity_manager
+      $jobRepository: '@core-extensions.job_queue.job_repository'
+      $entityManager: '@doctrine.orm.default_entity_manager'
