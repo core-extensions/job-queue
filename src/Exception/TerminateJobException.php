@@ -7,6 +7,6 @@ namespace CoreExtensions\JobQueueBundle\Exception;
 /**
  * used to forced stop handling
  */
-final class JobTerminatedException extends \RuntimeException implements JobNonRetryableExceptionInterface
+final class TerminateJobException extends \RuntimeException implements JobNonRetryableExceptionInterface
 {
 }

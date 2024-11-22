@@ -14,7 +14,7 @@ use CoreExtensions\JobQueueBundle\Entity\WorkerInfo;
 use CoreExtensions\JobQueueBundle\Exception\JobExpiredException;
 use CoreExtensions\JobQueueBundle\Exception\JobRetryableExceptionInterface;
 use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
-use CoreExtensions\JobQueueBundle\Exception\JobTerminatedException;
+use CoreExtensions\JobQueueBundle\Exception\TerminateJobException;
 use CoreExtensions\JobQueueBundle\JobConfiguration;
 use CoreExtensions\JobQueueBundle\Serializer;
 use CoreExtensions\JobQueueBundle\Tests\TestingJobCommand;
@@ -219,7 +219,7 @@ final class JobTest extends TestCase
         $job = $this->job;
 
         $failedAt = new \DateTimeImmutable();
-        $error = new JobTerminatedException('Some description', 10, new \RuntimeException('Previous'));
+        $error = new TerminateJobException('Some description', 10, new \RuntimeException('Previous'));
 
         // job must be dispatched and accepted before
         $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'some_string_id'));
@@ -274,7 +274,7 @@ final class JobTest extends TestCase
         $this->assertNull($job->getSealedBecauseOf());
 
         $failedAt3 = new \DateTimeImmutable();
-        $error3 = new JobTerminatedException('Some description 3', 10, new \RuntimeException('Previous 3'));
+        $error3 = new TerminateJobException('Some description 3', 10, new \RuntimeException('Previous 3'));
         $job->reject($failedAt3, $error3);
     }
 
