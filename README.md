@@ -1,5 +1,18 @@
 ## Job-queue
 
+### Usage
+
+```php
+$job = Job::initNew(
+    Uuid::uuid4()->toString(),
+    ExampleReverseGeocodeCommand::fromLonLat(0.5, 0.5),
+    new \DateTimeImmutable()
+);
+
+$jobManager = new JobManager();
+$jobManager->enqueueJob($job);
+```
+
 ### Requirements
 
 * Scalability: Possible to add additional workers to pool (for some group of tasks too)
