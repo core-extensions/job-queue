@@ -84,7 +84,7 @@ class Job
     /**
      * Массив из AcceptanceInfo, где ключи ($attemptsCount - 1) (нумерация с нуля).
      *
-     * @var ?array<int, array{acceptedAt: string, workerInfo: array{pid: integer, name: string}}>
+     * @var ?array<int, array{acceptedAt: string, workerInfo: array{pid: int, name: string}}>
      *
      * @see AcceptanceInfo[]
      *
@@ -218,6 +218,13 @@ class Job
      * @ORM\Column(type="integer", nullable=true)
      */
     private ?int $sealedBecauseOf = null;
+
+    /**
+     * @var ?array{totalItems: int, processedItems: int}>
+     *
+     * @see ProgressInfo
+     */
+    private ?array $progress = null;
 
     // >>> domain logic
 
@@ -461,6 +468,11 @@ class Job
         $this->setJobConfiguration($jobConfiguration->toArray());
     }
 
+    public function refreshProgress(ProgressInfo $progressInfo): void
+    {
+        $this->progress = $progressInfo->toArray();
+    }
+
     /**
      * ~~(специально private)~~
      */
@@ -520,6 +532,11 @@ class Job
     public function jobConfiguration(): JobConfiguration
     {
         return JobConfiguration::fromArray($this->getJobConfiguration());
+    }
+
+    public function progress(): ProgressInfo
+    {
+        return ProgressInfo::fromArray($this->getProgress());
     }
 
     /**
@@ -726,7 +743,7 @@ class Job
     }
 
     /**
-     * @param ?array{failedAt: string, errorCode: int, errorMessage: string, errorLine: int, errorFile: string, previousErrorCode: ?int, previousErrorMessage: ?string} $errors
+     * @param ?array<int, array{failedAt: string, errorCode: int, errorMessage: string, errorLine: int, errorFile: string, previousErrorCode: ?int, previousErrorMessage: ?string}> $errors
      */
     public function setErrors(?array $errors): void
     {
@@ -806,7 +823,7 @@ class Job
     }
 
     /**
-     * @return ?array<int, array{acceptedAt: string, workerInfo: array{pid: integer, name: string}}>
+     * @return ?array<int, array{acceptedAt: string, workerInfo: array{pid: int, name: string}}>
      */
     public function getAcceptances(): ?array
     {
@@ -814,10 +831,26 @@ class Job
     }
 
     /**
-     * @param ?array<int, array{acceptedAt: string, workerInfo: array{pid: integer, name: string}}> $acceptances
+     * @param ?array<int, array{acceptedAt: string, workerInfo: array{pid: int, name: string}}> $acceptances
      */
     public function setAcceptances(?array $acceptances): void
     {
         $this->acceptances = $acceptances;
+    }
+
+    /**
+     * @return ?array{totalItems: int, processedItems: int }
+     */
+    public function getProgress(): ?array
+    {
+        return $this->progress;
+    }
+
+    /**
+     * @param ?array{totalItems: int, processedItems: int } $progress
+     */
+    public function setProgress(?array $progress): void
+    {
+        $this->progress = $progress;
     }
 }

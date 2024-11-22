@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace CoreExtensions\JobQueueBundle\Tests\Entity;
 
+use _PHPStan_09f7c00bc\Nette\Utils\AssertionException;
 use CoreExtensions\JobQueueBundle\Entity\AcceptanceInfo;
 use CoreExtensions\JobQueueBundle\Entity\DispatchInfo;
 use CoreExtensions\JobQueueBundle\Entity\FailInfo;
 use CoreExtensions\JobQueueBundle\Entity\Job;
+use CoreExtensions\JobQueueBundle\Entity\ProgressInfo;
 use CoreExtensions\JobQueueBundle\Entity\WorkerInfo;
-use CoreExtensions\JobQueueBundle\Exception\JobRetryableExceptionInterface;
-use CoreExtensions\JobQueueBundle\Exception\JobTerminatedException;
-use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
 use CoreExtensions\JobQueueBundle\Exception\JobExpiredException;
+use CoreExtensions\JobQueueBundle\Exception\JobRetryableExceptionInterface;
+use CoreExtensions\JobQueueBundle\Exception\JobSealedInteractionException;
+use CoreExtensions\JobQueueBundle\Exception\JobTerminatedException;
 use CoreExtensions\JobQueueBundle\JobConfiguration;
 use CoreExtensions\JobQueueBundle\Serializer;
 use CoreExtensions\JobQueueBundle\Tests\TestingJobCommand;
@@ -92,6 +94,7 @@ final class JobTest extends TestCase
 
     /**
      * @test
+     *
      * @noinspection PhpUnhandledExceptionInspection
      */
     public function it_can_be_accepted(): void
@@ -119,6 +122,7 @@ final class JobTest extends TestCase
 
     /**
      * @test
+     *
      * @noinspection PhpUnhandledExceptionInspection
      */
     public function it_yells_if_expired_accept(): void
@@ -243,7 +247,9 @@ final class JobTest extends TestCase
         $job->accept(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
 
         $failedAt1 = new \DateTimeImmutable();
-        $retryableError1 = new class('Definitely retryable') extends \RuntimeException implements JobRetryableExceptionInterface {};
+        $retryableError1 = new class ('Definitely retryable') extends \RuntimeException implements
+            JobRetryableExceptionInterface {
+        };
         $job->reject($failedAt1, $retryableError1);
 
         // retry emulation
@@ -283,6 +289,40 @@ final class JobTest extends TestCase
     //     $this->assertNotNull($job->getSealedAt());
     //     $this->assertNotNull($job->getSealedDue());
     // }
+
+    /**
+     * @test
+     */
+    public function it_can_refresh_progress(): void
+    {
+        $job = $this->job;
+        $progressInfo = ProgressInfo::withTotalItems(1000);
+
+        $job->refreshProgress($progressInfo);
+
+        // it correctly sets progress
+        $this->assertEquals($progressInfo->toArray(), $job->progress()->toArray());
+
+        // workflow stuff
+        $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'some_string_id'));
+        $job->accept(AcceptanceInfo::fromValues(new \DateTimeImmutable(), WorkerInfo::fromValues(1, 'worker_1')));
+
+        // progress hasn't been changed yet
+        $this->assertEquals($progressInfo->toArray(), $job->progress()->toArray());
+
+        $job->refreshProgress($job->progress()->increment(250));
+        $this->assertEquals(25, round($job->progress()->percentage()));
+
+        $job->refreshProgress($job->progress()->increment(10));
+        $this->assertEquals(26, round($job->progress()->percentage()));
+
+        $job->refreshProgress($job->progress()->increment(740));
+        $this->assertEquals(100, round($job->progress()->percentage()));
+
+        // it yells if set progress more than 100%
+        $this->expectException(\Webmozart\Assert\InvalidArgumentException::class);
+        $job->refreshProgress($job->progress()->increment(1));
+    }
 
     /**
      * @test

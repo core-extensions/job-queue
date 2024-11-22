@@ -8,8 +8,8 @@ use CoreExtensions\JobQueueBundle\Entity\AcceptanceInfo;
 use CoreExtensions\JobQueueBundle\Entity\DispatchInfo;
 use CoreExtensions\JobQueueBundle\Entity\Job;
 use CoreExtensions\JobQueueBundle\Entity\WorkerInfo;
-use CoreExtensions\JobQueueBundle\Exception\JobOrphanException;
 use CoreExtensions\JobQueueBundle\Exception\JobNonRetryableExceptionInterface;
+use CoreExtensions\JobQueueBundle\Exception\JobOrphanException;
 use CoreExtensions\JobQueueBundle\Exception\JobRetryableExceptionInterface;
 use CoreExtensions\JobQueueBundle\Exception\JobUnboundException;
 use CoreExtensions\JobQueueBundle\JobConfiguration;
@@ -102,6 +102,7 @@ final class JobMiddlewareTest extends TestCase
 
     /**
      * кажется не нужен, потому что JobRevokedException у нас checked и обрабатывается без exception вовне
+     *
      * @test
      * public function it_yells_if_revoked_job_found(): void
      * {
@@ -279,7 +280,7 @@ final class JobMiddlewareTest extends TestCase
 
         // first call
         $this->stackNextMiddleware->method('handle')->willThrowException(
-            new class('retryable_exception_message') extends \Exception implements JobRetryableExceptionInterface {
+            new class ('retryable_exception_message') extends \Exception implements JobRetryableExceptionInterface {
             }
         );
         $jobMiddleware->handle($envelope, $this->stack);
@@ -310,7 +311,7 @@ final class JobMiddlewareTest extends TestCase
 
         // it retries if base exception thrown
         $this->stackNextMiddleware->method('handle')->willThrowException(
-            new class('retryable_by_default_exception_message') extends \Exception {
+            new class ('retryable_by_default_exception_message') extends \Exception {
             }
         );
 
@@ -367,7 +368,7 @@ final class JobMiddlewareTest extends TestCase
         $job->dispatched(DispatchInfo::fromValues(new \DateTimeImmutable(), 'long_string_id_1'));
 
         $this->stackNextMiddleware->method('handle')->willThrowException(
-            new class('non_retryable_exception_message') extends \Exception implements
+            new class ('non_retryable_exception_message') extends \Exception implements
                 JobNonRetryableExceptionInterface {
             }
         );

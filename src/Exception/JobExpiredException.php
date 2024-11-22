@@ -8,6 +8,7 @@ use CoreExtensions\JobQueueBundle\Entity\Job;
 
 /**
  * used if period between dispatch and accept exceeds timeout
+ *
  * @see JobConfiguration::timeout
  */
 final class JobExpiredException extends \RuntimeException implements JobNonRetryableExceptionInterface
