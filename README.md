@@ -15,17 +15,16 @@ $jobManager->enqueueJob($job);
 
 ### Requirements
 
-* Scalability: Possible to add additional workers to pool (for some group of tasks too)
-* Scalability: Possible to add additional workers
-* Scalability: One task can be executed only by one worker at the same time (see acknowledgment + basic_qos)
-* Flexibility: Ability to group jobs to chains that will be run sequentially
+* Possible to add additional workers to pool (for some group of tasks too)
+* One task can be executed only by one worker at the same time (see acknowledgment + basic_qos)
+* Ability to group jobs to chains that will be run sequentially
   examples:
     - https://laravel.com/docs/11.x/queues#job-chaining и https://laravel.com/docs/11.x/queues#chains-and-batches
     - https://docs.celeryq.dev/en/stable/userguide/canvas.html#chains
     - https://github.com/path/android-priority-jobqueue (group)
-* Flexibility: Ability to revoke handling job (in long-running iterable handlers too)
-* Flexibility: Ability to view errors of handling and react to them
-* Stability: Ability to re-run jobs
+* Ability to revoke handling job (in long-running iterable handlers too)
+* Ability to view errors of handling and react to them
+* Ability to re-run jobs
 
 ### Wishes
 
@@ -35,6 +34,8 @@ $jobManager->enqueueJob($job);
 ### TODO
 
 * re-run jobs due deployment stuffs (for example after compatibility-breaking modifications of some JobCommand)
+* several implementations of JobCommandFactoryInterface
+* more plain command (JobCommandInterface is overweight)
 
 ### Solution
 
