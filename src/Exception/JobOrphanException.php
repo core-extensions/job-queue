@@ -29,7 +29,6 @@ final class JobOrphanException extends \RuntimeException implements JobNonRetrya
         return $res;
     }
 
-
     public function getJobId(): string
     {
         return $this->jobId;
