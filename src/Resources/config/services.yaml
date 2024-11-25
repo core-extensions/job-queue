@@ -1,8 +1,10 @@
 services:
   core-extensions.job_queue.job_repository:
     class: CoreExtensions\JobQueueBundle\Repository\JobRepository
+    tags: [ 'doctrine.repository_service' ]
     arguments:
       $registry: '@doctrine'
+
   core-extensions.job_queue.job_middleware:
     class: CoreExtensions\JobQueueBundle\JobMiddleware
     arguments:

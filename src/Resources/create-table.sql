@@ -1,0 +1,25 @@
+CREATE TABLE jobs.orm_jobs
+(
+    job_id             UUID                     NOT NULL,
+    job_type           VARCHAR             NOT NULL,
+    job_command        JSONB                             DEFAULT NULL,
+    created_at         TIMESTAMP WITH TIME ZONE NOT NULL,
+    dispatches         JSONB                             DEFAULT NULL,
+    acceptances        JSONB                             DEFAULT NULL,
+    last_dispatched_at TIMESTAMP WITH TIME ZONE          DEFAULT NULL,
+    last_accepted_at   TIMESTAMP WITH TIME ZONE          DEFAULT NULL,
+    revoked_at         TIMESTAMP WITH TIME ZONE          DEFAULT NULL,
+    revoked_for        INTEGER                           DEFAULT NULL,
+    revoke_accepted_at TIMESTAMP WITH TIME ZONE          DEFAULT NULL,
+    chain_id           UUID                              DEFAULT NULL,
+    chain_position     INTEGER                           DEFAULT NULL,
+    result             JSONB                             DEFAULT NULL,
+    resolved_at        TIMESTAMP WITH TIME ZONE          DEFAULT NULL,
+    attempts_count     INTEGER                  NOT NULL DEFAULT 0,
+    errors             JSONB                             DEFAULT NULL,
+    job_configuration  JSONB                    NOT NULL,
+    version            INTEGER                  NOT NULL,
+    sealed_at          TIMESTAMP WITH TIME ZONE          DEFAULT NULL,
+    sealed_because_of  INTEGER                           DEFAULT NULL,
+    PRIMARY KEY (job_id)
+)

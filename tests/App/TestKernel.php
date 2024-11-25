@@ -13,6 +13,7 @@ class TestKernel extends Kernel
     {
         return [
             new \Symfony\Bundle\FrameworkBundle\FrameworkBundle(),
+            new \Doctrine\Bundle\DoctrineBundle\DoctrineBundle(),
             new \CoreExtensions\JobQueueBundle\JobQueueBundle(),
         ];
     }

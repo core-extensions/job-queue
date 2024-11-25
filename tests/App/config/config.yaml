@@ -1,0 +1,24 @@
+framework:
+  test: true
+  session:
+    storage_factory_id: session.storage.factory.mock_file
+  messenger:
+    reset_on_message: true
+
+doctrine:
+  dbal:
+    driver: 'pdo_sqlite'
+    path: ':memory:'
+  orm:
+    auto_generate_proxy_classes: true
+    naming_strategy: doctrine.orm.naming_strategy.underscore_number_aware
+    auto_mapping: true
+    mappings:
+      CoreExtensions\JobQueueBundle:
+        is_bundle: false
+        type: annotation
+        dir: '%kernel.project_dir%/src/Entity'
+        prefix: 'CoreExtensions\JobQueueBundle\Entity'
+        alias: JobQueue
+
+job_queue: ~
