@@ -373,7 +373,7 @@ SQL;
     private function assertLteDateCriteriaWorksProperly(
         string $criteriaName,
         \DateTimeImmutable $recordedMoment,
-        int $allCount
+        int $totalJobsCount
     ): void {
         $after = $recordedMoment->add(new \DateInterval('PT10S'));
         $before = $recordedMoment->sub(new \DateInterval('PT10S'));
@@ -388,7 +388,7 @@ SQL;
         $results = $this->repository->findBySimpleCriteria(
             [$criteriaName => $after]
         );
-        $this->assertCount($allCount, $results);
+        $this->assertCount($totalJobsCount, $results);
     }
 
     private function assertGteDateCriteriaWorksProperly(

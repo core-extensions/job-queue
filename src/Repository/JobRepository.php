@@ -47,8 +47,9 @@ class JobRepository extends ServiceEntityRepository
     /**
      * Our way to determine search options.
      *
-     * @param array<string, mixed> $criteria
+     * @param array<string, mixed>                $criteria
      * @param ?array<array{string, 'ASC'|'DESC'}> $orderBy
+     *
      * @return ?Job[]
      */
     public function findBySimpleCriteria(
