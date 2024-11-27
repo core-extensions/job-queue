@@ -1,6 +1,6 @@
 {
   "name": "core-extensions/job-queue",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "A simple approach to job-queue.",
   "type": "symfony-bundle",
   "license": "MIT",
