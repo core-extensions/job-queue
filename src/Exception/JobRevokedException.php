@@ -18,7 +18,7 @@ final class JobRevokedException extends \RuntimeException implements JobNonRetry
     {
         $res = new self(
             sprintf(
-                'Job "%s" was already revoked at "%s" (for %d))',
+                'Job "%s" already revoked at "%s" (for %d)',
                 $job->getJobId(),
                 Serializer::serializeDateTime($job->getRevokedAt()),
                 $job->getRevokedFor(),
