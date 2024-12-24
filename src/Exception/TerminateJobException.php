@@ -16,12 +16,13 @@ final class TerminateJobException extends \RuntimeException implements JobNonRet
     /**
      * (only webmozart/assert)
      */
-    public static function becauseOfAssertFail(string $jobId, InvalidArgumentException $assertionError): self
+    public static function becauseOfAssertionFails(string $jobId, InvalidArgumentException $assertionError): self
     {
         $res = new self(
             sprintf(
-                'Job "%s" terminated by assertion fail.',
+                'Job "%s" terminated by assertion fail with error "%s".',
                 $jobId,
+                $assertionError->getMessage(),
             ),
             0,
             $assertionError
